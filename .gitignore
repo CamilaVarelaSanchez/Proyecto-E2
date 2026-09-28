@@ -7,6 +7,7 @@
 # Local MCP and Agent configurations with potential credentials
 .agents/mcp_config.json
 .agents/*.local.*
+.mcp.json
 
 # Python
 __pycache__/
