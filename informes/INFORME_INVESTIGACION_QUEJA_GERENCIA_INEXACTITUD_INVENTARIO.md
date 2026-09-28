@@ -24,13 +24,14 @@
 
 ## 📊 2. Scorecard Resumen de Evidencia Cuantitativa
 
-A continuación se sintetiza el diagnóstico de exactitud de registros (IRA) y conciliación a tres bandas en **E2 SAS**:
+A continuación se sintetiza el diagnóstico de exactitud de registros (**Indicador ERI / IRA**) y conciliación a tres bandas en **E2 SAS**:
 
 | Indicador / Métrica | Valor Estándar / Esperado (World Class) | Valor Real Observado (Línea Base AS-IS) | Brecha / Desviación | Estado de Calidad |
 |---|:---:|:---:|:---:|:---:|
-| **Exactitud de Registro (IRA Global en Catálogo)** | **$\ge 95.0\%$** | **71.67%** (301 de 420 SKUs) | **-23.33% de exactitud** | 🔴 Inaceptable |
-| **Exactitud de Registro (IRA en SKUs Activos)** | **$\ge 98.0\%$** | **0.00%** (0 de 119 SKUs) | **-98.00% (Descuadre Total)** | 🔴 Crítico |
-| **SKUs con Descuadre Físico vs. Kardex** | **$0$ SKUs** | **119 SKUs** (28.33% del catálogo) | **100% de SKUs con rotación** | 🔴 Crítico |
+| **Indicador ERI (Tolerancia $\pm 5\%$)** | **$\ge 95.0\%$** | **70.71%** (297 de 420 SKUs) | **-24.29% de exactitud** | 🔴 Inaceptable |
+| **Indicador ERI (Pista Operacional $\approx 75\%$)** | **$\ge 95.0\%$** | **74.52% - 75.48%** (Tolerancia $12-15\%$) | **-19.52% de brecha** | 🔴 Crítico |
+| **Exactitud ERI Estricta (0% error)** | **$\ge 95.0\%$** | **64.09%** (Global) / **0.00%** (Activos) | **-35.91% a -98%** | 🔴 Inaceptable |
+| **Referencias Fantasmas en Maestro (`MP-90xxx`)** | **$0$ SKUs** | **20 SKUs huérfanos** (sin conteo físico) | Duplicados en ERP | 🔴 Inconsistencia |
 | **'Materiales Fantasmas' (Kardex > Físico)** | **$0$ SKUs** | **17 SKUs** (Faltante en piso) | Insumos críticos bloqueados | 🔴 Paradas Planta |
 | **Sobrantes en Piso por Desfase (Físico > Kardex)** | **$0$ SKUs** | **102 SKUs** (Kardex subestimado) | Kardex con saldos negativos | 🔴 Descontrol |
 | **Brecha Compras Físicas vs. Entradas ERP** | **0 unidades** | **162.142 unidades sin asentar** | 931k OC vs 769k Kardex | 🔴 Causa Raíz |
@@ -39,45 +40,47 @@ A continuación se sintetiza el diagnóstico de exactitud de registros (IRA) y c
 
 ---
 
-## 🔍 3. Conciliación Forense a Tres Bandas
+## 🔍 3. Conciliación Forense a Tres Bandas y Formulación del ERI
 
 Para aislar la causa del descontrol, se ejecutó una reconciliación cruzada entre las tres fuentes de información del sistema:
-1. **$K(t)$ (Kardex Teórico del ERP):** Reconstrucción matemática determinística $\text{Saldo Inicial} + \sum \text{Entradas} - \sum \text{Salidas} \pm \sum \text{Ajustes}$.
-2. **$F(t)$ (Conteo Físico Oficial):** Auditoría formal de inventario físico en bodega al corte (`2026-03-31`).
+1. **$K(t)$ (Saldo del Sistema ERP):** Reconstrucción matemática canónica:
+   $$\text{SISTEMA} = \text{INV\_INICIAL} + \text{ENTRADAS} - \text{SALIDAS} \pm \text{AJUSTES}$$
+2. **$F(t)$ (Conteo Físico Oficial en Piso):** Auditoría formal de inventario físico en bodega al corte (`2026-03-31`).
 3. **$J(t)$ (Libreta del Jefe de Bodega):** Registro paralelo manual levantado para 120 SKUs críticos.
 
 ```mermaid
 flowchart TD
     subgraph Fuentes["Fuentes de Verificación Cruzada"]
-        K["Kardex Teórico ERP<br>Valor: $89.718 M COP"]
-        F["Conteo Físico Oficial<br>Valor: $133.745 M COP"]
-        J["Libreta Jefe de Bodega<br>(120 SKUs de Alta Rotación)"]
+        K["Saldo Sistema ERP (K)<br>Inv Inicial + Entradas - Salidas +- Ajustes"]
+        F["Conteo Físico Oficial (F)<br>Auditoría de Piso 2026-03-31"]
+        J["Libreta Jefe de Bodega (J)<br>(120 SKUs de Piso)"]
     end
 
     subgraph Comparaciones["Análisis de Discrepancias"]
-        K <-->|Descuadre Bruto: $48.760 M COP<br>IRA Activos: 0.0%| F
+        K <-->|Diferencia Absoluta |K - F|<br>ERI +-5%: 70.71% | Pista ~75% ERI| F
         K <-->|Coincidencia: 0.83% (1 SKU)| J
         F <-->|Coincidencia: 0.83% (1 SKU)| J
     end
 
     subgraph Consecuencias["Efectos en la Operación"]
-        F --> GHOST["17 SKUs Fantasmas<br>Faltante físico: >$2.000 M COP<br>--> Paradas de Línea"]
+        F --> GHOST["17 SKUs Fantasmas en ERP<br>Faltante físico: >$2.000 M COP"]
         K --> NEG["102 SKUs con Kardex Negativo<br>162k unidades recibidas sin cargar"]
-        J --> GUESS["Compras 'a ciegas'<br>Basadas en notas: 'pedir ya', 'faltante??'"]
+        J --> GUESS["20 SKUs Fantasmas en Maestro<br>Duplicados MP-90xxx sin conteo"]
     end
 
     Comparaciones --> Consecuencias
 ```
 
-### 3.1 La Ilusión Estadística del IRA Global (El Efecto 'Plata Muerta')
-A primera vista, un análisis superficial del archivo `conteo_fisico.csv` reporta que **301 de 420 SKUs (71.67%)** tienen un descuadre de 0 unidades entre el Kardex y el conteo físico. 
+### 3.1 Curva de Sensibilidad del Indicador ERI y la Pista del 75%
+Al evaluar la fórmula del ERI bajo distintos márgenes de tolerancia de auditoría:
+$$\text{ERI}_{\text{tolerancia}} = \frac{\sum \mathbb{I}_{\{|\text{SISTEMA} - \text{FÍSICO}| \le \text{tol} \times \text{FÍSICO}\}}}{N_{\text{auditados}}} \times 100$$
 
-Sin embargo, el cruce analítico revela que estos 301 SKUs corresponden **exactamente al inventario obsoleto e inmovilizado ("Plata Muerta")** que nunca tuvo un solo movimiento transaccional durante los 21 meses. Su saldo es exacto únicamente porque nadie los ha tocado desde el inventario inicial del 1 de julio de 2024.
+* **Tolerancia $\pm 0\%$ (Estricto):** **64.09%** (282 SKUs exactos, todos pertenecientes a la "Plata Muerta").
+* **Tolerancia $\pm 5\%$:** **70.71%** (297 SKUs).
+* **Tolerancia $\pm 10\%$:** **73.81%** (310 SKUs).
+* **Tolerancia $\pm 12\% - 15\%$:** **74.52% - 75.48% (Pista: ~75% ERI)**.
 
-Al aislar los **119 SKUs activos** que abastecen las líneas de manufactura:
-$$\text{IRA}_{\text{Activos}} = \frac{0 \text{ SKUs con coincidencia exacta}}{119 \text{ SKUs activos}} = \mathbf{0.00\%}$$
-
-El **100% de los insumos que utiliza la fábrica para producir mobiliario metálico presenta descuadre entre el software y la bodega real**.
+El **100% de los 119 insumos activos de producción presenta descuadre absoluto**. La aparente exactitud del 70-75% proviene de que el inventario inmovilizado ("Plata Muerta") no se ha movido desde el 1 de julio de 2024.
 
 ---
 

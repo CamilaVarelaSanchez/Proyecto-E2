@@ -118,21 +118,51 @@ Meses de Pico vs Meses Valle en Consumo de Lámina:
 - Mes Pico (Febrero 2026): 764 PT -> 4.748,2 láminas (+140.5% de variación)
 ```
 
-Debido a que el ERP gestiona la reposición con un stock mínimo fijo y obsoleto ($Stock_{\min} = 100\text{ unidades}$), cuando llega un mes con demanda de más de 4.000 láminas, el inventario se extingue en pocos días sin que la orden de compra en curso alcance a llegar.
+---
+
+### 3.4 El Cuello de Botella de Lead Time y la Pista Reveladora del Vidrio
+
+Para entender la verdadera naturaleza del desabastecimiento, se realizó un análisis cruzado entre todas las familias de insumos. Este análisis arrojó un hallazgo fundamental: **El Vidrio da la pista clave para comprender qué está ocurriendo realmente en la planta.**
+
+```mermaid
+graph TD
+    subgraph Comparativa["Comparativa Cuantitativa Lámina vs. Vidrio"]
+        L["LÁMINA DE ACERO<br>Consumo Anual: $2.581 M COP<br>Costo Unitario Medio: $58.227 COP<br>Lead Time Real: 20.78 días (vs 12.11d ERP)"]
+        V["VIDRIO DECORATIVO / CUBIERTAS<br>Consumo Anual: $7.301 M COP (18.65% Planta)<br>Costo Unitario Medio: $121.434 COP<br>Lead Time Real: 20.40 días (vs 11.20d ERP)"]
+    end
+
+    subgraph Dinamica["Dinámica Operacional en Piso"]
+        L -->|Alta Intensidad BOM: hasta 7.76 láminas/mueble| AGOTA["Se Agota Físicamente en Días<br>(Stock Mínimo 100 dura 1.7 días)"]
+        V -->|Alto Valor Monetario y Retraso Idéntico| PISTA["Evidencia que el Cuello de Botella<br>es el Lead Time de Proveedores"]
+    end
+
+    Comparativa --> Dinamica
+```
+
+#### Comparativa Pericial:
+1. **Impacto Financiero:** El Vidrio es la categoría de **mayor consumo económico de toda la compañía ($7.301.373.000 COP/año)**, casi el triple del valor de la lámina ($2.581.659.000 COP/año), y su costo unitario promedio ($121.434 COP) es más del doble.
+2. **Retraso Sistemático Idéntico (Cuello de Botella):** Ambos materiales presentan un Lead Time real promedio casi idéntico (**20.78 días en lámina y 20.40 días en vidrio**), frente a tiempos teóricos de 11 a 12 días configurados en el ERP.
+3. **Por qué la lámina se agota primero físicamente:**  
+   La lámina tiene una intensidad de uso masiva en el BOM (hasta 7.76 láminas por mueble en 9 productos terminados como `PT-ESC-EJE`, `PT-ARCH-ROD`, `PT-LOCK-12`). Al configurarse un `stock_min = 100` arbitrario en el ERP, el stock de lámina se consume en **1.7 días**, mientras que el proveedor tarda **20.8 días**.  
+4. **Conclusión Pericial:** El desabastecimiento de lámina no es un problema aislado de compras de acero, sino la manifestación visible de un **cuello de botella estructural en los tiempos de entrega de proveedores** sumado a la falta de un Punto de Reorden ($ROP$) calibrado con la demanda dependiente del BOM.
 
 ---
 
-### 3.3 Reconstrucción de Saldos Kardex y Quiebres de Stock (Hipótesis 1C)
+### 3.5 Parámetros de Reposición Calculados (Demanda Dependiente BOM, EOQ y ROP Z=95%)
+A partir de la explosión del Plan de Producción $\times$ BOM y los Lead Times reales observados, se calcularon los parámetros técnicos de reposición:
 
-Al reconstruir cronológicamente el saldo diario de inventario para los 40 SKUs de lámina a partir de [`inventario_inicial.csv`](file:///c:/Users/Julian/Documents/NOVENO%20SEMESTRE/%C3%89NFASIS-2/PA-E2/inventario_inicial.csv) y [`movimientos_inventario.csv`](file:///c:/Users/Julian/Documents/NOVENO%20SEMESTRE/%C3%89NFASIS-2/PA-E2/movimientos_inventario.csv):
+* **Demanda Anual Dependiente ($D$):** Calculada multiplicando el Plan Maestro por la matriz BOM.
+* **Consumo Diario ($d$):** $d = D / 365$.
+* **Stock de Seguridad ($SS_{95\%}$):** $SS = 1.645 \cdot \sigma_d \cdot \sqrt{L}$ (garantiza $SLA = 95\%$ y riesgo de quiebre residual $\approx 5.5\% - 6\%$).
+* **Punto de Reorden ($ROP$):** $ROP = (d \cdot L) + SS$.
+* **Lote Económico ($EOQ$):** $EOQ = \sqrt{\frac{2 \cdot D \cdot \$150.000}{0.22 \times C_u}}$.
 
-1. **1.167 Eventos de Desabastecimiento Registrados:** Se detectaron 1.167 transacciones de consumo donde el stock de lámina disponible era insuficiente ($Stock(t) \le 0$), obligando a la planta a operar en números rojos o pausar la línea de ensamble.
-2. **Incumplimiento Crónico del Plan Maestro:**  
-   En **19 de los 21 meses evaluados (90.5%)**, la cantidad real producida de productos con lámina estuvo por debajo de la meta planeada:
-   * **Septiembre 2024:** Plan 639 PT vs Real 597 PT (**-42 unidades** / -6.6%).
-   * **Abril 2025:** Plan 582 PT vs Real 545 PT (**-37 unidades** / -6.4%).
-   * **Agosto 2024:** Plan 663 PT vs Real 629 PT (**-34 unidades** / -5.1%).
-   * **Mayo 2025:** Plan 668 PT vs Real 636 PT (**-32 unidades** / -4.8%).
+#### Parámetros para los SKUs Principales de Lámina y Vidrio:
+| SKU | Descripción | Categoría | Demanda Anual ($D$) | Lead Time Real ($L$) | $EOQ$ (Lote Óptimo) | Stock Seg ($SS_{95\%}$) | Punto Reorden ($ROP$) |
+|---|---|---|:---:|:---:|:---:|:---:|:---:|
+| `MP-0020` | Lámina calibre/ref 1 | Lámina | 6,616 unids | 20.8 días | **193 unids** | **194 unids** | **563 unids** |
+| `MP-0024` | Vidrio calibre/ref 33 | Vidrio | 11,304 unids | 20.4 días | **263 unids** | **389 unids** | **1,021 unids** |
+| `MP-0004` | Vidrio calibre/ref 33 | Vidrio | 3,999 unids | 20.4 días | **119 unids** | **157 unids** | **381 unids** |
 
 ---
 

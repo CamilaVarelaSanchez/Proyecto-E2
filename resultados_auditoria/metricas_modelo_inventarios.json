@@ -1,0 +1,35 @@
+{
+  "total_skus_maestro": 440,
+  "total_skus_conteo_fisico": 420,
+  "eri_estricto_0pct": 67.14285714285714,
+  "eri_tolerancia_5pct": 70.71428571428572,
+  "valor_total_consumo_anual_cop": 39141962443.57713,
+  "abc_resumen": {
+    "clase_A": {
+      "skus": 29,
+      "pct_skus": 6.59090909090909,
+      "valor_cop": 31054698878.71999,
+      "pct_valor": 79.33863541840836
+    },
+    "clase_B": {
+      "skus": 29,
+      "pct_skus": 6.59090909090909,
+      "valor_cop": 6013343737.680001,
+      "pct_valor": 15.362908148379617
+    },
+    "clase_C": {
+      "skus": 382,
+      "pct_skus": 86.81818181818181,
+      "valor_cop": 2073919827.1771426,
+      "pct_valor": 5.298456433212013
+    }
+  },
+  "cuello_botella_lead_time": {
+    "lamina_lt_declarado": 12.25,
+    "lamina_lt_real": 20.77570093457944,
+    "vidrio_lt_declarado": 11.204081632653061,
+    "vidrio_lt_real": 20.402439024390244,
+    "valor_consumo_anual_lamina": 2581659438.428571,
+    "valor_consumo_anual_vidrio": 7301373300.731428
+  }
+}
