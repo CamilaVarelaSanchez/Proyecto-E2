@@ -1,0 +1,19 @@
+{
+  "total_alertas_reorden": 1,
+  "inversion_total_sugerida_cop": 27557712.0,
+  "ordenes_sugeridas": [
+    {
+      "sku": "MP-0015",
+      "descripcion": "Empaque calibre/ref 15",
+      "categoria": "Empaque",
+      "clase_abc": "A",
+      "stock_fisico_real": 5,
+      "punto_reorden_rop": 406,
+      "stock_seguridad_ss": 179,
+      "cantidad_sugerida_eoq": 182,
+      "costo_unitario_cop": 151416.0,
+      "inversion_estimada_cop": 27557712.0,
+      "justificacion_ejecutiva": "Se recomienda emitir Orden de Compra por 182 unidades del SKU MP-0015 (Empaque calibre/ref 15), debido a que el stock disponible real (5 unidades) perforó el Punto de Reorden ROP (406 unidades). Pertenece a Clase A con una demanda anualizada de 3,665 unidades."
+    }
+  ]
+}
