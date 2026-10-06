@@ -1,0 +1,3 @@
+timestamp,sku,decision,planeador,motivo
+2026-10-05T19:48:45.298857,MP-0015,APROBADA,Planeador Compras E2,
+2026-10-05T19:57:05.602280,MP-0015,APROBADA,Planeador Compras E2,Autorización de lote EOQ para mitigar quiebre
