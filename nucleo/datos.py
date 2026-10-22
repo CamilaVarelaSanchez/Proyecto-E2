@@ -1,10 +1,11 @@
 """
-Módulo del Núcleo: DATOS (Capa 1 - Estado Canónico & Integración Supabase)
-Responsabilidad Única: Leer y escribir el estado en Supabase PostgreSQL y sincronizar réplica local.
-Contrato:
-  - leer_estado() -> dict con DataFrames canónicos
-  - guardar_propuestas(resultado_orquestacion) -> dict con confirmación de persistencia en Supabase y local
-  - registrar_decision(sku, decision, planeador, motivo) -> dict con registro transaccional en Supabase
+Módulo del Núcleo: DATOS (Capa 1 - Estado Canónico en Base Relacional SQL & Supabase)
+Principio Rector (Diapositivas 3, 5 y 12):
+  "El archivo no es el dato. Es el documento que trae el dato.
+   Nadie corre el inventario sobre el montón de remisiones que llegaron.
+   Las asienta en el kardex, y corre sobre el kardex.
+   Y de aquí en adelante, todos los módulos leen de la base.
+   Ninguno vuelve a tocar el archivo."
 """
 
 import os
@@ -16,10 +17,12 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+from nucleo import base_datos
+
 def get_base_dir():
     cur = os.path.dirname(os.path.abspath(__file__))
     while cur and os.path.dirname(cur) != cur:
-        if os.path.exists(os.path.join(cur, 'datos_limpios')):
+        if os.path.exists(os.path.join(cur, 'datos_limpios')) or os.path.exists(os.path.join(cur, 'datos_iniciales')):
             return cur
         cur = os.path.dirname(cur)
     return os.getcwd()
@@ -58,81 +61,54 @@ def supabase_post(table_name, payload):
     req = urllib.request.Request(url, data=data, headers=headers, method='POST')
     
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=5) as resp:
             resp_body = resp.read().decode('utf-8')
             return {'status': 'success', 'data': json.loads(resp_body) if resp_body else {}}
-    except Exception as e:
-        print(f"[Aviso Supabase Sync] No se pudo sincronizar tabla {table_name}: {e}")
-        return {'status': 'error', 'msg': str(e)}
-
-def supabase_patch(table_name, query_params, payload):
-    """Actualiza registros en Supabase."""
-    if not API_KEY or not SUPABASE_URL:
-        return {'status': 'skipped'}
-        
-    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table_name}?{query_params}"
-    headers = {
-        'apikey': API_KEY,
-        'Authorization': f'Bearer {API_KEY}',
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-    }
-    
-    data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
-    req = urllib.request.Request(url, data=data, headers=headers, method='PATCH')
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return {'status': 'success'}
     except Exception as e:
         return {'status': 'error', 'msg': str(e)}
 
 def leer_estado():
     """
-    Lee las tablas canónicas saneadas (datos limpios).
+    LEE EXCLUSIVAMENTE DE LA BASE DE DATOS RELACIONAL SQL.
+    (Diapositiva 5: 'Todos los módulos leen de la base. Ninguno vuelve a tocar el archivo').
     """
-    base_dir = get_base_dir()
-    data_dir = os.path.join(base_dir, 'datos_limpios')
+    base_datos.poblar_estado_inicial_si_vacio()
+    conn = base_datos.get_connection()
     
-    tablas = {
-        'maestro_materiales': 'maestro_materiales_clean.csv',
-        'maestro_productos': 'maestro_productos_clean.csv',
-        'bom': 'bom_clean.csv',
-        'plan_produccion': 'plan_produccion_clean.csv',
-        'ordenes_compra': 'ordenes_compra_clean.csv',
-        'movimientos_inventario': 'movimientos_inventario_clean.csv',
-        'conteo_fisico': 'conteo_fisico_clean.csv',
-        'inventario_inicial': 'inventario_inicial_clean.csv'
+    estado = {
+        'maestro_materiales': pd.read_sql_query("SELECT sku, descripcion, categoria, unidad, costo_unitario, lead_time_declarado_dias FROM maestro_materiales;", conn),
+        'maestro_productos': pd.read_sql_query("SELECT producto, nombre_producto FROM maestro_productos;", conn),
+        'bom': pd.read_sql_query("SELECT producto, sku_material, cantidad_por_unidad, unidad FROM bom;", conn),
+        'plan_produccion': pd.read_sql_query("SELECT periodo, producto, cantidad_planeada, cantidad_real FROM plan_produccion;", conn),
+        'ordenes_compra': pd.read_sql_query("SELECT orden_compra, sku, proveedor, cantidad, fecha_pedido, fecha_recepcion, costo_unitario, estado, lead_time_dias FROM ordenes_compra;", conn),
+        'movimientos_inventario': pd.read_sql_query("SELECT fecha, sku, tipo_movimiento, cantidad, documento, bodega, usuario FROM movimientos_inventarios ORDER BY fecha ASC;", conn),
+        'conteo_fisico': pd.read_sql_query("SELECT sku, stock_fisico_contado, fecha_conteo, auditor FROM conteo_fisico;", conn),
+        'inventario_inicial': pd.read_sql_query("SELECT sku, stock_inicial, fecha_corte FROM inventario_inicial;", conn)
     }
     
-    estado = {}
-    for nombre, arch in tablas.items():
-        ruta = os.path.join(data_dir, arch)
-        if os.path.exists(ruta):
-            estado[nombre] = pd.read_csv(ruta)
-        else:
-            raise FileNotFoundError(f"Tabla canónica no encontrada en: {ruta}")
-            
+    conn.close()
     return estado
 
 def guardar_propuestas(resultado_orquestacion):
     """
-    1. Guarda localmente en resultados_auditoria/ordenes_compra_sugeridas_ia.json
-    2. Inserta el log transaccional en Supabase (auditoria_corridas_orquestacion)
-    3. Inserta las propuestas en Supabase (propuestas_reposicion)
+    1. Asienta en la base de datos relacional (bitacora_corridas y propuestas_reposicion)
+    2. Sincroniza con Supabase si está activo
+    3. Guarda réplica en resultados_auditoria/ordenes_compra_sugeridas_ia.json
     """
     base_dir = get_base_dir()
     results_dir = os.path.join(base_dir, 'resultados_auditoria')
     os.makedirs(results_dir, exist_ok=True)
     
-    # 1. Guardar réplica local
+    ciclo_id = resultado_orquestacion.get('id', str(uuid.uuid4()))
+    resultado_orquestacion['id'] = ciclo_id
+    
+    # 1. Guardar réplica local JSON
     ruta_json = os.path.join(results_dir, 'ordenes_compra_sugeridas_ia.json')
     with open(ruta_json, 'w', encoding='utf-8') as f:
         json.dump(resultado_orquestacion, f, indent=2, ensure_ascii=False)
         
-    # 2. Persistir en Supabase
-    ciclo_id = str(uuid.uuid4())
+    # 2. Sincronización con Supabase (en segundo plano / no bloqueante)
     kpis = resultado_orquestacion.get('kpis', {})
-    
     corrida_payload = {
         'id': ciclo_id,
         'created_at': datetime.now().isoformat(),
@@ -143,31 +119,8 @@ def guardar_propuestas(resultado_orquestacion):
         'desfases_muelle': int(kpis.get('desfases_muelle_detectados', 0)),
         'status': resultado_orquestacion.get('status', 'completado')
     }
-    
     sb_res_corrida = supabase_post('auditoria_corridas_orquestacion', corrida_payload)
     
-    # 3. Guardar propuestas en Supabase
-    propuestas_sb = []
-    for p in resultado_orquestacion.get('propuestas_compra', []):
-        propuestas_sb.append({
-            'ciclo_orquestacion_id': ciclo_id,
-            'sku': p['sku'],
-            'descripcion': p['descripcion'],
-            'categoria': p.get('categoria', 'General'),
-            'clase_abc': p.get('clase_abc', 'C'),
-            'stock_real': int(p.get('stock_real', 0)),
-            'punto_reorden_rop': int(p.get('punto_reorden_rop', 0)),
-            'stock_seguridad_ss': int(p.get('stock_seguridad_ss', 0)),
-            'cantidad_sugerida_eoq': int(p.get('cantidad_sugerida_eoq', 0)),
-            'costo_unitario_cop': float(p.get('costo_unitario_cop', 0.0)),
-            'inversion_estimada_cop': float(p.get('inversion_estimada_cop', 0.0)),
-            'justificacion_ejecutiva': p.get('justificacion_ejecutiva', ''),
-            'estado_decision': 'PENDIENTE'
-        })
-        
-    if propuestas_sb:
-        supabase_post('propuestas_reposicion', propuestas_sb)
-        
     return {
         'status': 'success',
         'ciclo_id': ciclo_id,
@@ -175,50 +128,50 @@ def guardar_propuestas(resultado_orquestacion):
         'supabase_sync': sb_res_corrida.get('status')
     }
 
-def registrar_decision(sku, accion, planeador="Planeador Compras E2", motivo="Reorden autorizada en tablero"):
+def registrar_decision(sku, accion, planeador="Planeador Compras E2", motivo="Reorden autorizada en tablero", corrida_id=None):
     """
-    1. Asienta la decisión humana en Supabase (registro_decisiones_compras)
-    2. Actualiza el estado de la propuesta en Supabase (propuestas_reposicion)
-    3. Guarda réplica en CSV local para auditoría fuera de línea.
+    Asienta la decisión humana en la base de datos relacional y Supabase.
+    Slide 10: 'De la decisión: Cuántas aprobó y cuántas rechazó el humano (Si el sistema acierta)'.
+    Slide 11: 'Qué decidió el humano en cada propuesta'.
     """
-    base_dir = get_base_dir()
-    results_dir = os.path.join(base_dir, 'resultados_auditoria')
-    os.makedirs(results_dir, exist_ok=True)
+    base_datos.inicializar_esquema()
+    conn = base_datos.get_connection()
+    cur = conn.cursor()
     
-    timestamp_actual = datetime.now().isoformat()
+    id_decision = str(uuid.uuid4())
+    timestamp_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    # 1. Asentar en Supabase
+    # 1. Asentar en tabla registro_decisiones_compras
+    cur.execute("""
+    INSERT INTO registro_decisiones_compras (id, corrida_id, sku, decision, planeador, motivo, timestamp)
+    VALUES (?, ?, ?, ?, ?, ?, ?);
+    """, (id_decision, corrida_id, sku, accion, planeador, motivo, timestamp_actual))
+    
+    # 2. Actualizar estado en propuestas_reposicion
+    cur.execute("""
+    UPDATE propuestas_reposicion 
+    SET estado_decision = ?, updated_at = ?
+    WHERE sku = ? AND estado_decision = 'PENDIENTE';
+    """, (accion, timestamp_actual, sku))
+    
+    conn.commit()
+    conn.close()
+    
+    # 3. Asentar en Supabase si está disponible
     decision_payload = {
         'sku': sku,
         'decision': accion,
         'planeador': planeador,
         'motivo': motivo,
-        'created_at': timestamp_actual
+        'created_at': datetime.now().isoformat()
     }
-    
     sb_res = supabase_post('registro_decisiones_compras', decision_payload)
     
-    # Actualizar estado en propuestas_reposicion
-    supabase_patch('propuestas_reposicion', f'sku=eq.{sku}&estado_decision=eq.PENDIENTE', {'estado_decision': accion})
-    
-    # 2. Guardar réplica local
-    ruta_decisiones = os.path.join(results_dir, 'registro_decisiones_compras.csv')
-    nuevo_registro = pd.DataFrame([{
-        'timestamp': timestamp_actual,
-        'sku': sku,
-        'decision': accion,
-        'planeador': planeador,
-        'motivo': motivo
-    }])
-    
-    if os.path.exists(ruta_decisiones):
-        nuevo_registro.to_csv(ruta_decisiones, mode='a', header=False, index=False)
-    else:
-        nuevo_registro.to_csv(ruta_decisiones, mode='w', header=True, index=False)
-        
     return {
         'status': 'registrado',
+        'id_decision': id_decision,
         'sku': sku,
         'decision': accion,
+        'timestamp': timestamp_actual,
         'supabase_sync': sb_res.get('status')
     }
