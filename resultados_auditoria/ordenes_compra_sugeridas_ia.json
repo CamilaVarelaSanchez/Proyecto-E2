@@ -1,13 +1,13 @@
 {
-  "id": "59a24ad4-32fc-4477-b16f-47cec146f121",
+  "id": "32f86c82-5b9e-4a8b-bdf8-2e4839c27268",
   "status": "completado",
   "kpis": {
     "total_skus": 440,
-    "eri_global_pct": 70.48,
+    "eri_global_pct": 70.71,
     "valor_total_anual_cop": 39141962443.58,
     "skus_en_quiebre": 1,
     "inversion_propuesta_cop": 18775584.0,
-    "materiales_fantasmas_detectados": 25,
+    "materiales_fantasmas_detectados": 24,
     "desfases_muelle_detectados": 99
   },
   "resumen_abc": {
@@ -57,13 +57,13 @@
   "criterio_parada_activado": true,
   "mensaje_parada": "Requiere supervisión y confirmación del planeador de compras antes de emitir órdenes.",
   "queja_1_auditoria_inventario": {
-    "eri_global_pct": 70.48,
+    "eri_global_pct": 70.71,
     "meta_world_class_pct": 95.0,
     "total_auditados": 420,
-    "concordantes": 296,
-    "total_fantasmas": 25,
+    "concordantes": 297,
+    "total_fantasmas": 24,
     "total_desfases": 99,
-    "impacto_financiero_fantasmas_cop": 2603223699.0,
+    "impacto_financiero_fantasmas_cop": 2580111357.0,
     "fantasmas_detalle": [
       {
         "sku": "MP-0167",
@@ -144,16 +144,6 @@
         "faltante_en_piso": 78.0,
         "impacto_cop": 729768.0,
         "costo_unitario": 9356.0
-      },
-      {
-        "sku": "MP-0006",
-        "descripcion": "Lámina calibre/ref 25",
-        "categoria": "Lámina",
-        "saldo_sistema_kardex": 5352.0,
-        "conteo_fisico_bodega": 5090.0,
-        "faltante_en_piso": 262.0,
-        "impacto_cop": 37240942.0,
-        "costo_unitario": 142141.0
       },
       {
         "sku": "MP-0022",
@@ -259,10 +249,10 @@
         "sku": "MP-0005",
         "descripcion": "Adhesivos calibre/ref 2",
         "categoria": "Adhesivos",
-        "saldo_sistema_kardex": 10957.8,
+        "saldo_sistema_kardex": 11057.8,
         "conteo_fisico_bodega": 9902.0,
-        "faltante_en_piso": 1055.8,
-        "impacto_cop": 149169758.8,
+        "faltante_en_piso": 1155.8,
+        "impacto_cop": 163298358.8,
         "costo_unitario": 141286.0
       },
       {
@@ -528,9 +518,9 @@
         "sku": "MP-0001",
         "descripcion": "Adhesivos calibre/ref 25",
         "categoria": "Adhesivos",
-        "saldo_sistema_kardex": -6638.5,
+        "saldo_sistema_kardex": -6648.5,
         "conteo_fisico_bodega": 7783.0,
-        "sobrante_en_piso": 14421.5,
+        "sobrante_en_piso": 14431.5,
         "costo_unitario": 299035.0
       },
       {
@@ -814,13 +804,13 @@
       "capa": "Capa 1",
       "modulo": "Kardex Relacional",
       "estado": "Completado",
-      "detalle": "16,305 movimientos transaccionales reconciliados."
+      "detalle": "16,309 movimientos transaccionales reconciliados."
     },
     {
       "capa": "Capa 2",
       "modulo": "Auditoría ERI / IRA",
       "estado": "Completado",
-      "detalle": "Exactitud ERI: 70.48% | 25 materiales fantasmas aislados."
+      "detalle": "Exactitud ERI: 70.71% | 24 materiales fantasmas aislados."
     },
     {
       "capa": "Capa 3",
