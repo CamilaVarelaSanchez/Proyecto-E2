@@ -175,3 +175,38 @@ def registrar_decision(sku, accion, planeador="Planeador Compras E2", motivo="Re
         'timestamp': timestamp_actual,
         'supabase_sync': sb_res.get('status')
     }
+
+def obtener_analisis_demanda():
+    """
+    Retorna la matriz detallada de demanda dependiente (BOM), clasificación Pareto ABC
+    y parámetros analíticos de reposición (ROP, EOQ, Stock de Seguridad).
+    """
+    from nucleo import bom, abc, reposicion, eri
+    
+    estado = leer_estado()
+    res_bom = bom.explotar_bom(estado)
+    res_abc = abc.clasificar_abc(res_bom['df_demanda_insumos'])
+    res_rep = reposicion.calcular_parametros_reposicion(res_abc['df_abc'], estado)
+    res_eri = eri.auditar_eri(estado)
+    
+    df = res_rep['df_parametros'].copy()
+    cf = estado['conteo_fisico']
+    df = df.merge(cf[['sku', 'stock_fisico_contado']], on='sku', how='left')
+    df_eri_res = res_eri['df_auditoria'][['sku', 'saldo_teorico']]
+    df = df.merge(df_eri_res, on='sku', how='left')
+    df['stock_real'] = df['stock_fisico_contado'].fillna(df['saldo_teorico']).fillna(0)
+    df['en_quiebre'] = (df['stock_real'] <= df['ROP']) & (df['demanda_anual_d'] > 0)
+    
+    df_clean = df.replace({np.nan: None})
+    return {
+        'resumen_abc': res_abc['resumen_clases'],
+        'total_skus': len(df_clean),
+        'skus_en_quiebre': int(df['en_quiebre'].sum()),
+        'materiales': df_clean[[
+            'sku', 'descripcion', 'categoria', 'costo_unitario', 'lead_time_usado',
+            'demanda_anual_d', 'consumo_diario_d', 'sigma_diario',
+            'clasificacion_abc', 'valor_consumo_anual', 'SS_95', 'ROP', 'EOQ',
+            'stock_real', 'en_quiebre'
+        ]].to_dict(orient='records')
+    }
+

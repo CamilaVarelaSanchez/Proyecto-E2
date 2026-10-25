@@ -11,12 +11,16 @@ Contrato:
 import pandas as pd
 import numpy as np
 
-def calcular_parametros_reposicion(df_abc, estado, z=1.645, co=150000.0, i_tasa=0.22):
+def calcular_parametros_reposicion(df_abc, estado, z=1.645, co=80000.0, i_tasa=0.25):
     """
     Calcula:
       SS = Z * sigma_d * sqrt(LeadTime)
       ROP = (d * LeadTime) + SS
       EOQ = sqrt((2 * D * Co) / (i * Cu))
+    Parámetros económicos oficiales de E2 SAS (01_Encargo_de_consultoria.pdf):
+      Co (S) = $80.000 COP por emisión y gestión de cada orden de compra.
+      i (H)  = 25% anual del costo unitario por mantenimiento de inventario.
+      Z      = 1.645 (95% nivel de servicio).
     """
     df = df_abc.copy()
     oc = estado.get('ordenes_compra')

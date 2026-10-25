@@ -1,12 +1,12 @@
 {
-  "id": "67d7a697-6c56-4c6d-a7f5-203faa9b5c11",
+  "id": "59a24ad4-32fc-4477-b16f-47cec146f121",
   "status": "completado",
   "kpis": {
     "total_skus": 440,
     "eri_global_pct": 70.48,
     "valor_total_anual_cop": 39141962443.58,
     "skus_en_quiebre": 1,
-    "inversion_propuesta_cop": 27557712.0,
+    "inversion_propuesta_cop": 18775584.0,
     "materiales_fantasmas_detectados": 25,
     "desfases_muelle_detectados": 99
   },
@@ -35,15 +35,23 @@
       "sku": "MP-0015",
       "descripcion": "Empaque calibre/ref 15",
       "categoria": "Empaque",
+      "unidad": "unidad",
       "clase_abc": "A",
-      "stock_real": 5,
-      "punto_reorden_rop": 406,
-      "stock_seguridad_ss": 179,
-      "cantidad_sugerida_eoq": 182,
+      "stock_real": 5.0,
+      "punto_reorden_rop": 406.0,
+      "stock_seguridad_ss": 179.0,
+      "cantidad_sugerida_eoq": 124.0,
       "costo_unitario_cop": 151416.0,
-      "inversion_estimada_cop": 27557712.0,
-      "justificacion_ejecutiva": "Se recomienda emitir Orden de Compra por 182 unidades del SKU MP-0015 (Empaque calibre/ref 15), debido a que el stock disponible en bodega (5 unids) perforó el Punto de Reorden ROP (406 unids). Insumo clasificado en Pareto como Clase A, con un consumo anual proyectado de 3,665 unidades y un Stock de Seguridad de amortiguación de 179 unidades.",
-      "decision_sugerida": "Reorden Inmediata"
+      "inversion_estimada_cop": 18775584.0,
+      "lead_time_dias": 22,
+      "dias_cobertura_remanente": 0,
+      "fecha_sugerida_emision": "2026-10-25",
+      "fecha_recepcion_estimada": "2026-11-16",
+      "prioridad": "Alta",
+      "accion_sugerida": "Emitir Orden de Compra por 124 unidads",
+      "riesgo_mitigado": "Prevención de parada de línea de producción ($450.000 COP/hora)",
+      "justificacion_ejecutiva": "Se recomienda emitir de inmediato una orden de compra por 124 unidads de Empaque calibre/ref 15 (MP-0015). El inventario físico registrado (5 unidads) se encuentra por debajo del Punto de Reorden (406 unidads), registrando una cobertura actual estimada en 0 días. La recomendación se sustenta en una demanda anual proyectada de 3,665 unidads derivada del plan maestro, un Stock de Seguridad amortiguador de 179 unidads para un nivel de servicio del 95% y un tiempo de entrega del proveedor de 22 días. Esta compra previene riesgos de desabastecimiento en la línea de ensamble y sobrecostos por parada operativa.",
+      "estado_decision": "PENDIENTE"
     }
   ],
   "criterio_parada_activado": true,
@@ -520,9 +528,9 @@
         "sku": "MP-0001",
         "descripcion": "Adhesivos calibre/ref 25",
         "categoria": "Adhesivos",
-        "saldo_sistema_kardex": -6623.5,
+        "saldo_sistema_kardex": -6638.5,
         "conteo_fisico_bodega": 7783.0,
-        "sobrante_en_piso": 14406.5,
+        "sobrante_en_piso": 14421.5,
         "costo_unitario": 299035.0
       },
       {
@@ -608,7 +616,7 @@
         "cobertura_dias_erp_antiguo": 1.7,
         "nuevo_rop_dinamico": 997,
         "nuevo_ss_dinamico": 488,
-        "lote_eoq_sugerido": 1228,
+        "lote_eoq_sugerido": 841,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -621,7 +629,7 @@
         "cobertura_dias_erp_antiguo": 1.7,
         "nuevo_rop_dinamico": 935,
         "nuevo_ss_dinamico": 464,
-        "lote_eoq_sugerido": 1914,
+        "lote_eoq_sugerido": 1311,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -634,7 +642,7 @@
         "cobertura_dias_erp_antiguo": 2.1,
         "nuevo_rop_dinamico": 766,
         "nuevo_ss_dinamico": 380,
-        "lote_eoq_sugerido": 191,
+        "lote_eoq_sugerido": 131,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -647,7 +655,7 @@
         "cobertura_dias_erp_antiguo": 2.2,
         "nuevo_rop_dinamico": 983,
         "nuevo_ss_dinamico": 481,
-        "lote_eoq_sugerido": 183,
+        "lote_eoq_sugerido": 125,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -660,7 +668,7 @@
         "cobertura_dias_erp_antiguo": 2.2,
         "nuevo_rop_dinamico": 854,
         "nuevo_ss_dinamico": 425,
-        "lote_eoq_sugerido": 1061,
+        "lote_eoq_sugerido": 727,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -673,7 +681,7 @@
         "cobertura_dias_erp_antiguo": 2.5,
         "nuevo_rop_dinamico": 1108,
         "nuevo_ss_dinamico": 461,
-        "lote_eoq_sugerido": 300,
+        "lote_eoq_sugerido": 206,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -686,7 +694,7 @@
         "cobertura_dias_erp_antiguo": 2.6,
         "nuevo_rop_dinamico": 684,
         "nuevo_ss_dinamico": 348,
-        "lote_eoq_sugerido": 369,
+        "lote_eoq_sugerido": 253,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -699,7 +707,7 @@
         "cobertura_dias_erp_antiguo": 2.6,
         "nuevo_rop_dinamico": 654,
         "nuevo_ss_dinamico": 317,
-        "lote_eoq_sugerido": 420,
+        "lote_eoq_sugerido": 288,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -712,7 +720,7 @@
         "cobertura_dias_erp_antiguo": 2.7,
         "nuevo_rop_dinamico": 686,
         "nuevo_ss_dinamico": 353,
-        "lote_eoq_sugerido": 186,
+        "lote_eoq_sugerido": 127,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -725,7 +733,7 @@
         "cobertura_dias_erp_antiguo": 3.2,
         "nuevo_rop_dinamico": 708,
         "nuevo_ss_dinamico": 308,
-        "lote_eoq_sugerido": 539,
+        "lote_eoq_sugerido": 369,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -738,7 +746,7 @@
         "cobertura_dias_erp_antiguo": 3.3,
         "nuevo_rop_dinamico": 952,
         "nuevo_ss_dinamico": 443,
-        "lote_eoq_sugerido": 1291,
+        "lote_eoq_sugerido": 884,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -751,7 +759,7 @@
         "cobertura_dias_erp_antiguo": 3.4,
         "nuevo_rop_dinamico": 971,
         "nuevo_ss_dinamico": 346,
-        "lote_eoq_sugerido": 1052,
+        "lote_eoq_sugerido": 721,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -764,7 +772,7 @@
         "cobertura_dias_erp_antiguo": 3.7,
         "nuevo_rop_dinamico": 1005,
         "nuevo_ss_dinamico": 415,
-        "lote_eoq_sugerido": 492,
+        "lote_eoq_sugerido": 337,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -777,7 +785,7 @@
         "cobertura_dias_erp_antiguo": 3.7,
         "nuevo_rop_dinamico": 489,
         "nuevo_ss_dinamico": 233,
-        "lote_eoq_sugerido": 227,
+        "lote_eoq_sugerido": 156,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
       {
@@ -790,7 +798,7 @@
         "cobertura_dias_erp_antiguo": 3.7,
         "nuevo_rop_dinamico": 461,
         "nuevo_ss_dinamico": 223,
-        "lote_eoq_sugerido": 586,
+        "lote_eoq_sugerido": 402,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       }
     ]
@@ -806,7 +814,7 @@
       "capa": "Capa 1",
       "modulo": "Kardex Relacional",
       "estado": "Completado",
-      "detalle": "16,303 movimientos transaccionales reconciliados."
+      "detalle": "16,305 movimientos transaccionales reconciliados."
     },
     {
       "capa": "Capa 2",
