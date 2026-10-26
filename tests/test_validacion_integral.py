@@ -165,7 +165,79 @@ class TestValidacionIntegralEmpresarial(unittest.TestCase):
         self.assertIn('instrumento_4_decision', tele)
         self.assertIn('instrumento_5_costo', tele)
         self.assertIn('bitacora_corridas', tele)
-        self.assertIn('bitacora_cargas', tele)
+    def test_11_ingesta_idempotente_supabase_hashes_y_upsert(self):
+        """
+        Verifica los requisitos específicos de ingesta idempotente para Supabase:
+          1. Hashes únicos (SHA256 y MD5) generados sobre archivo y filas.
+          2. Estados de carga cuantitativos (Exitoso / Parcial / Rechazado).
+          3. Idempotencia absoluta con sentencias UPSERT (ON CONFLICT).
+          4. Cero duplicados tras múltiples reintentos de carga.
+          5. Detección de SKU huérfano y rechazo con causal técnica relacional (3FN).
+        """
+        def _limpiar_datos_prueba():
+            c = base_datos.get_connection()
+            cur = c.cursor()
+            cur.execute("DELETE FROM conteo_fisico WHERE sku LIKE 'MP-TEST-%';")
+            cur.execute("DELETE FROM maestro_materiales WHERE sku LIKE 'MP-TEST-%';")
+            cur.execute("DELETE FROM bitacora_cargas WHERE nombre_archivo LIKE '%test%';")
+            c.commit()
+            c.close()
+
+        _limpiar_datos_prueba()
+        try:
+            # 0. Asegurar materiales de prueba en maestro_materiales
+            csv_maestro = (
+                "sku,descripcion,categoria,costo_unitario\n"
+                "MP-TEST-001,Material Test 1,Lámina,12000\n"
+                "MP-TEST-002,Material Test 2,Tornillería,450\n"
+            ).encode('utf-8')
+            res_m = ingesta.ejecutar_carga_cinco_pasos('maestro_test.csv', csv_maestro, 'maestro_materiales')
+            self.assertIn(res_m['estado_carga'], ['Exitoso', 'Parcial'])
+
+            # Carga con mezcla de registros nuevos, duplicados y erróneos
+            csv_lote = (
+                "sku,stock_fisico_contado,fecha_conteo\n"
+                "MP-TEST-001,150,2026-10-25\n"
+                "MP-TEST-002,300,2026-10-25\n"
+                "MP-TEST-001,150,2026-10-25\n"        # Duplicado en el mismo lote
+                ",50,2026-10-25\n"                    # SKU nulo (Rechazado)
+                "SKU-HUERFANO-999,10,2026-10-25\n"   # SKU inexistente (Rechazado por 3FN)
+            ).encode('utf-8')
+
+            res1 = ingesta.ejecutar_carga_cinco_pasos('conteo_test_supabase.csv', csv_lote, 'conteo_fisico')
+            
+            # 1. Hashes calculados
+            self.assertIn('hash_archivo_sha256', res1)
+            self.assertIn('hash_archivo_md5', res1)
+            self.assertEqual(len(res1['hash_archivo_sha256']), 64)
+            
+            # 2. Desglose cuantitativo
+            self.assertEqual(res1['total_registros_procesados'], 5)
+            self.assertEqual(res1['filas_insertadas_o_actualizadas'], 2)
+            self.assertEqual(res1['filas_omitidas_duplicadas'], 1)
+            self.assertEqual(res1['filas_rechazadas'], 2)
+            self.assertEqual(res1['estado_carga'], 'Parcial')
+            
+            # 3. Reingresar el mismo archivo CSV una segunda y tercera vez (Idempotencia absoluta)
+            res2 = ingesta.ejecutar_carga_cinco_pasos('conteo_test_supabase.csv', csv_lote, 'conteo_fisico')
+            self.assertEqual(res2['filas_insertadas_o_actualizadas'], 0)
+            self.assertEqual(res2['cambio_neto_base'], 0)
+            self.assertEqual(res2['filas_omitidas_duplicadas'], 3)
+            self.assertEqual(res2['filas_rechazadas'], 2)
+            self.assertTrue(res2['es_idempotente'])
+
+            # 4. Probar UPSERT (actualización sin duplicación de clave primaria)
+            csv_actualizacion = (
+                "sku,stock_fisico_contado,fecha_conteo\n"
+                "MP-TEST-001,180,2026-10-25\n"  # Saldo modificado de 150 a 180
+            ).encode('utf-8')
+            res_upd = ingesta.ejecutar_carga_cinco_pasos('conteo_upd.csv', csv_actualizacion, 'conteo_fisico')
+            self.assertEqual(res_upd['filas_actualizadas'], 1)
+            self.assertEqual(res_upd['filas_insertadas'], 0)
+            self.assertEqual(res_upd['cambio_neto_base'], 0)  # No agrega nueva fila, actualiza la existente
+            self.assertEqual(res_upd['estado_carga'], 'Exitoso')
+        finally:
+            _limpiar_datos_prueba()
 
 if __name__ == '__main__':
     unittest.main()

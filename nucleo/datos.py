@@ -67,6 +67,43 @@ def supabase_post(table_name, payload):
     except Exception as e:
         return {'status': 'error', 'msg': str(e)}
 
+def supabase_upsert(table_name, payload, on_conflict_col='sku', do_update=True, batch_size=200):
+    """
+    Ejecuta un UPSERT idempotente sobre la API REST de Supabase con PostgREST.
+    Encabezados:
+      - Prefer: resolution=merge-duplicates (ON CONFLICT DO UPDATE)
+      - Prefer: resolution=ignore-duplicates (ON CONFLICT DO NOTHING)
+    Query param: on_conflict=<clave_unica>
+    """
+    if not API_KEY or not SUPABASE_URL:
+        return {'status': 'skipped', 'msg': 'No hay credenciales de Supabase configuradas'}
+        
+    records = payload if isinstance(payload, list) else [payload]
+    if not records:
+        return {'status': 'skipped', 'msg': 'Lista de registros vacía'}
+        
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table_name}?on_conflict={on_conflict_col}"
+    resolution = 'merge-duplicates' if do_update else 'ignore-duplicates'
+    headers = {
+        'apikey': API_KEY,
+        'Authorization': f'Bearer {API_KEY}',
+        'Content-Type': 'application/json',
+        'Prefer': f'resolution={resolution},return=minimal'
+    }
+    
+    total_synced = 0
+    try:
+        for i in range(0, len(records), batch_size):
+            batch = records[i:i + batch_size]
+            data_bytes = json.dumps(batch, ensure_ascii=False).encode('utf-8')
+            req = urllib.request.Request(url, data=data_bytes, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                if resp.status in (200, 201, 204):
+                    total_synced += len(batch)
+        return {'status': 'success', 'filas_sincronizadas': total_synced}
+    except Exception as e:
+        return {'status': 'offline_fallback', 'msg': str(e), 'filas_sincronizadas': total_synced}
+
 def leer_estado():
     """
     LEE EXCLUSIVAMENTE DE LA BASE DE DATOS RELACIONAL SQL.

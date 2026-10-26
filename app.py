@@ -844,8 +844,8 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Flujo de Ingesta y Validación de Archivos CSV en Cinco Pasos</div>
-                        <div class="card-subtitle">Procesamiento determinístico, validación estructural de esquema, normalización y escritura con idempotencia garantizada.</div>
+                        <div class="card-title">Flujo de Ingesta, Validación y Control de Idempotencia en Supabase</div>
+                        <div class="card-subtitle">Protocolo de 5 pasos con detección de hashes únicos (SHA-256 / MD5), sentencias UPSERT con ON CONFLICT y auditoría pericial.</div>
                     </div>
                 </div>
 
@@ -861,15 +861,34 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                             </select>
                         </div>
 
-                        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
-                            <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            <div style="font-weight: 600; font-size: 0.925rem; margin-bottom: 0.25rem;">Haga clic o arrastre el archivo CSV corporativo aquí</div>
-                            <div style="font-size: 0.775rem; color: var(--text-secondary);">Archivos delimitados por coma o punto y coma (.csv) · Detección automática de codificación</div>
+                        <!-- ZONA DE CARGA (DRAG & DROP) CON INDICADOR DE ESTADO CLARO (Requisito 2) -->
+                        <div class="dropzone" id="dropzone">
+                            <!-- Estado Inicial -->
+                            <div id="dropzoneEstadoInicial" style="display: block;">
+                                <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem;">Arrastre su archivo CSV o seleccione desde su equipo</div>
+                                <div style="font-size: 0.775rem; color: var(--text-secondary);">Archivos delimitados por coma o punto y coma (.csv) · Detección automática de codificación e integridad</div>
+                            </div>
+                            
+                            <!-- Estado Procesando -->
+                            <div id="dropzoneEstadoProcesando" style="display: none; padding: 0.85rem 0;">
+                                <div class="spinner" style="width: 28px; height: 28px; border-width: 3px; margin: 0 auto 0.75rem auto; border-top-color: #38BDF8;"></div>
+                                <div style="font-weight: 600; font-size: 0.95rem; color: #38BDF8; margin-bottom: 0.25rem;">Validando estructura e idempotencia en Supabase...</div>
+                                <div style="font-size: 0.775rem; color: var(--text-secondary);">Verificando unicidad, claves naturales y aplicando cláusulas ON CONFLICT en Supabase</div>
+                            </div>
+
+                            <!-- Estado Completado -->
+                            <div id="dropzoneEstadoCompletado" style="display: none; padding: 0.5rem 0;">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2.5" style="margin: 0 auto 0.5rem auto; display: block;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                <div style="font-weight: 600; font-size: 0.95rem; color: var(--success-text); margin-bottom: 0.25rem;">Procesamiento e Idempotencia Conformes en Supabase</div>
+                                <div style="font-size: 0.775rem; color: var(--text-secondary);">Reporte consolidado de auditoría de carga generado abajo</div>
+                            </div>
+
                             <input type="file" id="fileInput" accept=".csv" style="display: none;" onchange="manejarSeleccionArchivo(this.files[0])">
                         </div>
 
                         <div id="archivoMeta" style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); display: none;">
-                            Archivo Seleccionado: <strong id="lblNombreArchivo" style="color: #FFFFFF;">--</strong> (<span id="lblTamanoArchivo">-- KB</span>)
+                            Archivo: <strong id="lblNombreArchivo" style="color: #FFFFFF;">--</strong> (<span id="lblTamanoArchivo">-- KB</span>) · Hash SHA-256: <code id="lblHashArchivo" class="mono" style="color: #60A5FA;">--</code>
                         </div>
 
                         <div style="margin-top: 1rem; display: flex; gap: 0.75rem;">
@@ -877,61 +896,92 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                                 <span>Paso 1 y 2: Validar Estructura y Previsualizar</span>
                             </button>
                             <button id="btnConfirmarCarga" class="btn btn-primary" onclick="confirmarIngesta()" disabled>
-                                <span>Paso 3, 4 y 5: Normalizar y Asentar en Base de Datos</span>
+                                <span>Paso 3, 4 y 5: Normalizar y Asentar en Supabase</span>
                             </button>
                         </div>
                     </div>
 
                     <div>
                         <div class="card" style="background: var(--bg-surface-elevated); margin-bottom: 0; height: 100%;">
-                            <div style="font-weight: 600; font-size: 0.925rem; margin-bottom: 0.5rem;">Diagnóstico Estructural del Archivo de Entrada</div>
+                            <div style="font-weight: 600; font-size: 0.925rem; margin-bottom: 0.5rem;">Diagnóstico Estructural y de Idempotencia</div>
                             <div id="diagnosticoEstructural" style="font-size: 0.825rem; color: var(--text-secondary); line-height: 1.5;">
-                                Seleccione un archivo CSV para inspeccionar delimitadores, juego de caracteres y verificar la presencia de las columnas obligatorias según el modelo relacional.
+                                Seleccione o arrastre un archivo CSV para inspeccionar delimitadores, juego de caracteres, calcular su hash único y validar las columnas obligatorias contra el esquema relacional en Supabase.
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Resumen de Rendición de Cuentas (Paso 4) -->
+                <!-- COMPONENTE DE REPORTE DETALLADO DE INGESTA (Requisito 3) -->
                 <div id="panelRendicionCuentas" style="display: none; margin-top: 1.5rem;">
+                    <!-- Tarjeta de Resumen Ejecutivo y Estado de Carga -->
+                    <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-fine); border-radius: var(--radius-md); padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div style="font-size: 1.05rem; font-weight: 600; color: #FFFFFF;">Reporte Consolidado de Auditoría de Carga</div>
+                                <div id="rcBadgeEstado" class="kpi-badge badge-success" style="font-size: 0.75rem; padding: 0.25rem 0.65rem;">--</div>
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                                ID Carga: <span id="rcIdCarga" class="mono" style="color: #60A5FA;">--</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.8rem; color: var(--text-secondary);">
+                            <div>Archivo: <strong id="rcNombreArchivo" style="color: #FFFFFF;">--</strong></div>
+                            <div>Hash SHA-256: <code id="rcHashArchivo" class="mono" style="color: #60A5FA;">--</code></div>
+                            <div>Sincronización Supabase: <strong id="rcSupabaseSync" style="color: var(--success-text);">ON CONFLICT DO UPDATE / DO NOTHING</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Las 4 Tarjetas Métricas Cuantitativas Exigidas -->
                     <div class="kpi-grid">
                         <div class="kpi-card">
-                            <div class="kpi-label">Registros Leídos del Archivo</div>
+                            <div class="kpi-label">Total de Registros Procesados</div>
                             <div id="rcLeidas" class="kpi-value">0</div>
-                            <div class="kpi-footer">Total de registros evaluados</div>
+                            <div class="kpi-footer">Número de filas leídas del CSV</div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">Registros Insertados en Base</div>
+                            <div class="kpi-label">Registros Insertados / Actualizados</div>
                             <div id="rcInsertadas" class="kpi-value" style="color: var(--success-text);">0</div>
-                            <div class="kpi-footer">Nuevas transacciones asentadas</div>
+                            <div class="kpi-footer">Filas agregadas o actualizadas en Supabase</div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">Omitidos por Idempotencia</div>
+                            <div class="kpi-label">Registros Omitidos por Idempotencia</div>
                             <div id="rcOmitidas" class="kpi-value" style="color: #60A5FA;">0</div>
-                            <div class="kpi-footer">Duplicados prevenidos sin alteración</div>
+                            <div class="kpi-footer">Detectadas como ya existentes (sin alteración)</div>
                         </div>
                         <div class="kpi-card">
                             <div class="kpi-label">Registros Rechazados</div>
                             <div id="rcRechazadas" class="kpi-value" style="color: var(--danger-text);">0</div>
-                            <div class="kpi-footer">Inconsistencias o datos corruptos</div>
+                            <div class="kpi-footer">Errores de formato, fechas o nulos obligatorios</div>
                         </div>
                     </div>
 
-                    <!-- Trazabilidad Fila a Fila -->
+                    <!-- Banner de Explicación de Idempotencia -->
+                    <div id="bannerIdempotenciaExplicacion" class="alert-banner alert-success" style="margin-bottom: 1.25rem;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <div>
+                            <div class="alert-title" style="font-size: 0.875rem;">Garantía Absoluta de Idempotencia en Supabase</div>
+                            <div class="alert-body" style="font-size: 0.8rem;" id="rcTextoIdempotencia">
+                                El reingreso del mismo archivo o la ejecución múltiple de la carga no altera los saldos de inventario ni duplica registros. Las transacciones existentes son gestionadas con cláusulas ON CONFLICT.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trazabilidad Fila a Fila con Razón Exacta de Rechazo -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin: 1.25rem 0 0.75rem 0;">
-                        <div style="font-weight: 600; font-size: 0.925rem;">Auditoría y Trazabilidad Fila a Fila</div>
+                        <div style="font-weight: 600; font-size: 0.925rem;">Trazabilidad Pericial Fila a Fila (Razón Exacta por Fila)</div>
                         <div class="filter-bar" style="margin-bottom: 0;">
-                            <select id="filtroEstadoFila" class="form-select" style="max-width: 190px;" onchange="filtrarTrazabilidad()">
+                            <select id="filtroEstadoFila" class="form-select" style="max-width: 210px;" onchange="filtrarTrazabilidad()">
                                 <option value="">Todos los Estados</option>
                                 <option value="INSERTADA">Insertadas</option>
+                                <option value="ACTUALIZADA">Actualizadas</option>
                                 <option value="OMITIDA">Omitidas por Idempotencia</option>
-                                <option value="RECHAZADA">Rechazadas</option>
+                                <option value="RECHAZADA">Rechazadas con Inconsistencia</option>
                             </select>
                             <button class="btn btn-outline btn-sm" onclick="descargarInformeAuditoria()">Descargar Reporte CSV de Auditoría</button>
                         </div>
                     </div>
 
-                    <div class="table-responsive" style="max-height: 400px;">
+                    <div class="table-responsive" style="max-height: 420px;">
                         <table>
                             <thead>
                                 <tr>
@@ -939,7 +989,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                                     <th>Identificador Único</th>
                                     <th>Estado de Transacción</th>
                                     <th>Causa del Resultado</th>
-                                    <th>Detalle Pericial</th>
+                                    <th>Razón Exacta / Detalle Pericial</th>
                                 </tr>
                             </thead>
                             <tbody id="tablaTrazabilidadBody">
@@ -1237,19 +1287,62 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
         }
 
         // ==========================================
-        // MÓDULO DE INGESTA (5 PASOS)
+        // MÓDULO DE INGESTA (5 PASOS & SUPABASE)
         // ==========================================
+        function mostrarEstadoDropzone(estado) {
+            const elInicial = document.getElementById('dropzoneEstadoInicial');
+            const elProcesando = document.getElementById('dropzoneEstadoProcesando');
+            const elCompletado = document.getElementById('dropzoneEstadoCompletado');
+            if (elInicial) elInicial.style.display = (estado === 'inicial') ? 'block' : 'none';
+            if (elProcesando) elProcesando.style.display = (estado === 'procesando') ? 'block' : 'none';
+            if (elCompletado) elCompletado.style.display = (estado === 'completado') ? 'block' : 'none';
+        }
+
+        function configurarDropzone() {
+            const dz = document.getElementById('dropzone');
+            if (!dz) return;
+
+            dz.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'INPUT') {
+                    document.getElementById('fileInput').click();
+                }
+            });
+
+            dz.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dz.style.borderColor = 'var(--primary)';
+                dz.style.backgroundColor = 'var(--primary-subtle)';
+            });
+
+            dz.addEventListener('dragleave', () => {
+                dz.style.borderColor = '';
+                dz.style.backgroundColor = '';
+            });
+
+            dz.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dz.style.borderColor = '';
+                dz.style.backgroundColor = '';
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    manejarSeleccionArchivo(e.dataTransfer.files[0]);
+                }
+            });
+        }
+
         function manejarSeleccionArchivo(file) {
             if (!file) return;
             archivoSeleccionadoNombre = file.name;
+            mostrarEstadoDropzone('inicial');
             const reader = new FileReader();
             reader.onload = (e) => {
                 archivoSeleccionadoContenido = e.target.result;
                 document.getElementById('lblNombreArchivo').innerText = file.name;
                 document.getElementById('lblTamanoArchivo').innerText = (file.size / 1024).toFixed(1) + ' KB';
+                document.getElementById('lblHashArchivo').innerText = 'Pendiente de cálculo...';
                 document.getElementById('archivoMeta').style.display = 'block';
                 document.getElementById('btnPrevisualizar').disabled = false;
                 document.getElementById('btnConfirmarCarga').disabled = true;
+                document.getElementById('panelRendicionCuentas').style.display = 'none';
             };
             reader.readAsText(file);
         }
@@ -1258,7 +1351,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             const tipo = document.getElementById('ingestaTipoDoc').value;
             const btn = document.getElementById('btnPrevisualizar');
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Validando estructura...';
+            mostrarEstadoDropzone('procesando');
 
             try {
                 const res = await fetch('/api/previsualizar', {
@@ -1271,16 +1364,19 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                     })
                 });
                 const data = await res.json();
+                mostrarEstadoDropzone('inicial');
                 
                 const diag = document.getElementById('diagnosticoEstructural');
                 if (data.valido) {
+                    document.getElementById('lblHashArchivo').innerText = (data.hash_archivo_sha256 || '').substring(0, 18) + '...';
                     diag.innerHTML = `
-                        <div style="color: var(--success-text); font-weight: 600; margin-bottom: 0.5rem;">✓ Estructura de archivo conforme para importación</div>
-                        <p><strong>Delimitador detectado:</strong> '${data.delimitador}' | <strong>Codificación:</strong> ${data.codificacion.toUpperCase()} | <strong>Filas leídas:</strong> ${data.filas_total}</p>
+                        <div style="color: var(--success-text); font-weight: 600; margin-bottom: 0.5rem;">✓ Estructura de archivo conforme para importación e idempotencia</div>
+                        <p><strong>Hash SHA-256:</strong> <code class="mono" style="color: #60A5FA;">${data.hash_archivo_sha256}</code></p>
+                        <p style="margin-top: 0.35rem;"><strong>Delimitador detectado:</strong> '${data.delimitador}' | <strong>Codificación:</strong> ${data.codificacion.toUpperCase()} | <strong>Filas leídas:</strong> ${data.filas_total}</p>
                         <p style="margin-top: 0.4rem; color: #CBD5E1;">Columnas obligatorias presentes: <em>${data.columnas_esperadas.join(', ')}</em>.</p>
                     `;
                     document.getElementById('btnConfirmarCarga').disabled = false;
-                    showToast('Validación estructural aprobada. Listo para asentar en base de datos.');
+                    showToast('Validación estructural aprobada. Listo para asentar con sentencias UPSERT.');
                 } else {
                     diag.innerHTML = `
                         <div style="color: var(--danger-text); font-weight: 600; margin-bottom: 0.5rem;">✕ Inconsistencia en la estructura del archivo</div>
@@ -1289,10 +1385,10 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                     document.getElementById('btnConfirmarCarga').disabled = true;
                 }
             } catch (err) {
+                mostrarEstadoDropzone('inicial');
                 showToast('Error en validación: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<span>Paso 1 y 2: Validar Estructura y Previsualizar</span>';
             }
         }
 
@@ -1300,7 +1396,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             const tipo = document.getElementById('ingestaTipoDoc').value;
             const btn = document.getElementById('btnConfirmarCarga');
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Procesando e insertando...';
+            mostrarEstadoDropzone('procesando');
 
             try {
                 const res = await fetch('/api/importar', {
@@ -1314,29 +1410,85 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 });
                 const data = await res.json();
                 
-                document.getElementById('panelRendicionCuentas').style.display = 'block';
-                document.getElementById('rcLeidas').innerText = data.filas_leidas;
-                document.getElementById('rcInsertadas').innerText = data.filas_insertadas;
-                document.getElementById('rcOmitidas').innerText = data.filas_omitidas_duplicadas;
-                document.getElementById('rcRechazadas').innerText = data.filas_rechazadas;
-
-                trazabilidadActual = data.trazabilidad_filas || [];
-                renderTablaTrazabilidad(trazabilidadActual);
-                showToast(`Carga finalizada: ${data.filas_insertadas} nuevas insertadas, ${data.filas_omitidas_duplicadas} omitidas por idempotencia.`);
+                mostrarEstadoDropzone('completado');
+                renderReporteAuditoriaDetallado(data);
+                showToast(`Carga procesada: Estado ${data.estado_carga}. ${data.filas_insertadas_o_actualizadas} afectadas, ${data.filas_omitidas_duplicadas} omitidas por idempotencia.`);
             } catch (err) {
+                mostrarEstadoDropzone('inicial');
                 showToast('Error durante la importación: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<span>Paso 3, 4 y 5: Normalizar y Asentar en Base de Datos</span>';
             }
+        }
+
+        function renderReporteAuditoriaDetallado(data) {
+            document.getElementById('panelRendicionCuentas').style.display = 'block';
+
+            // 1. Estado de la Carga (Exitoso / Parcial / Rechazado)
+            const badge = document.getElementById('rcBadgeEstado');
+            if (data.estado_carga === 'Exitoso') {
+                badge.className = 'kpi-badge badge-success';
+                badge.innerText = '✓ Estado: Carga Exitosa (100% Conforme)';
+            } else if (data.estado_carga === 'Parcial') {
+                badge.className = 'kpi-badge badge-warning';
+                badge.innerText = '⚠ Estado: Carga Parcial (Con Observaciones)';
+            } else {
+                badge.className = 'kpi-badge badge-danger';
+                badge.innerText = '✕ Estado: Carga Rechazada (Inconsistencias)';
+            }
+
+            // Metadatos
+            document.getElementById('rcIdCarga').innerText = (data.id_carga || '').substring(0, 16) + '...';
+            document.getElementById('rcNombreArchivo').innerText = data.nombre_archivo || archivoSeleccionadoNombre;
+            document.getElementById('rcHashArchivo').innerText = data.hash_archivo_sha256 || 'N/A';
+            
+            const sbSync = document.getElementById('rcSupabaseSync');
+            if (data.sincronizacion_supabase && (data.sincronizacion_supabase.status === 'success' || data.sincronizacion_supabase.estado === 'SINCRONIZADO')) {
+                sbSync.innerHTML = '<span style="color: var(--success-text);">✓ Sincronizado en Supabase (UPSERT ON CONFLICT)</span>';
+            } else if (data.sincronizacion_supabase && data.sincronizacion_supabase.status === 'offline_fallback') {
+                sbSync.innerHTML = '<span style="color: #60A5FA;">✓ Asentado en Base Relacional Local (Modo Resiliente / Supabase Offline)</span>';
+            } else {
+                sbSync.innerHTML = '<span style="color: #60A5FA;">✓ Asentado en Base Relacional (ON CONFLICT DO UPDATE / DO NOTHING)</span>';
+            }
+
+            // 2. Total de Registros Procesados
+            document.getElementById('rcLeidas').innerText = data.total_registros_procesados || data.filas_leidas;
+
+            // 3. Registros Insertados / Actualizados
+            document.getElementById('rcInsertadas').innerText = data.filas_insertadas_o_actualizadas || (data.filas_insertadas + data.filas_actualizadas);
+
+            // 4. Registros Omitidos por Idempotencia
+            document.getElementById('rcOmitidas').innerText = data.filas_omitidas_duplicadas;
+
+            // 5. Registros Rechazados
+            document.getElementById('rcRechazadas').innerText = data.filas_rechazadas;
+
+            // Explicación de Idempotencia
+            const textoIdemp = document.getElementById('rcTextoIdempotencia');
+            textoIdemp.innerText = `Idempotencia verificada: el reingreso del mismo archivo o la ejecución múltiple no altera los saldos de inventario ni duplica registros (Cambio neto en base = ${data.cambio_neto_base} registros). Las transacciones existentes fueron gestionadas con cláusulas ON CONFLICT en Supabase y base relacional.`;
+
+            // Trazabilidad Fila a Fila
+            trazabilidadActual = data.trazabilidad_filas || [];
+            renderTablaTrazabilidad(trazabilidadActual);
         }
 
         function renderTablaTrazabilidad(filas) {
             const tbody = document.getElementById('tablaTrazabilidadBody');
             tbody.innerHTML = '';
+            
+            if (filas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay registros de trazabilidad para este filtro.</td></tr>';
+                return;
+            }
+
             filas.forEach(f => {
                 const tr = document.createElement('tr');
-                const badgeClass = f.estado === 'INSERTADA' ? 'badge-success' : (f.estado.includes('OMITIDA') ? 'badge-neutral' : 'badge-danger');
+                let badgeClass = 'badge-neutral';
+                if (f.estado === 'INSERTADA') badgeClass = 'badge-success';
+                else if (f.estado === 'ACTUALIZADA') badgeClass = 'badge-warning';
+                else if (f.estado.includes('OMITIDA')) badgeClass = 'badge-neutral';
+                else if (f.estado === 'RECHAZADA') badgeClass = 'badge-danger';
+
                 tr.innerHTML = `
                     <td class="mono">${f.fila}</td>
                     <td class="mono" style="font-weight: 600;">${f.identificador}</td>
@@ -1363,15 +1515,16 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `auditoria_carga_${Date.now()}.csv`);
+            link.setAttribute("download", `auditoria_carga_supabase_${Date.now()}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
         function limpiarEstadoIngesta() {
+            mostrarEstadoDropzone('inicial');
             document.getElementById('panelRendicionCuentas').style.display = 'none';
-            document.getElementById('diagnosticoEstructural').innerText = 'Seleccione un archivo CSV para inspeccionar delimitadores, codificación y estructura.';
+            document.getElementById('diagnosticoEstructural').innerText = 'Seleccione o arrastre un archivo CSV para inspeccionar delimitadores, juego de caracteres, calcular su hash único y validar las columnas obligatorias.';
             document.getElementById('btnConfirmarCarga').disabled = true;
         }
 
@@ -1447,6 +1600,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
 
         // Carga inicial
         window.onload = () => {
+            configurarDropzone();
             ejecutarAnalisisIntegral();
         };
     </script>

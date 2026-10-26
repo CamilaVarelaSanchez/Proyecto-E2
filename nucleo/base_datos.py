@@ -151,9 +151,14 @@ def inicializar_esquema():
         filas_rechazadas INTEGER NOT NULL,
         filas_omitidas_duplicadas INTEGER NOT NULL,
         detalle_rechazos TEXT,
-        usuario TEXT DEFAULT 'Operador Ingesta'
+        usuario TEXT DEFAULT 'Operador Ingesta',
+        hash_archivo_sha256 TEXT
     );
     """)
+    try:
+        cur.execute("ALTER TABLE bitacora_cargas ADD COLUMN hash_archivo_sha256 TEXT;")
+    except Exception:
+        pass
 
     # 10. BITÁCORA DE CORRIDAS (Instrumentos 2, 3, 5: Rendición de cuentas del sistema)
     cur.execute("""

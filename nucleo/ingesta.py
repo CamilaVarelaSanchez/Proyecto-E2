@@ -1,16 +1,16 @@
 """
 Módulo del Núcleo: INGESTA DE DATOS Y TRAZABILIDAD (Los 5 Pasos & Idempotencia)
 Cumple rigurosamente los requisitos empresariales y metodológicos de Producción 4.0:
-  Paso 1: ESCOGER   -> Selección del archivo, detección de codificación y delimitador.
-  Paso 2: VALIDAR   -> Columnas requeridas, tipos de datos, no nulos y previsualización.
-  Paso 3: NORMALIZAR-> Fechas, categorías, unidades, valores absolutos (IA / Heurística).
-  Paso 4: REPORTAR  -> Rendición de cuentas fila a fila (insertada, omitida, rechazada).
-  Paso 5: ESCRIBIR  -> A la base de datos relacional (Acumulativa e Idempotente).
+  Paso 1: ESCOGER   -> Selección del archivo, detección de codificación, delimitador y cálculo de hashes (SHA256/MD5).
+  Paso 2: VALIDAR   -> Columnas requeridas, tipos de datos, no nulos, integridad referencial y previsualización.
+  Paso 3: NORMALIZAR-> Fechas gregorianas, categorías canónicas, unidades, valores numéricos absolutos.
+  Paso 4: REPORTAR  -> Rendición de cuentas cuantitativa fila a fila (insertada, actualizada, omitida, rechazada).
+  Paso 5: ESCRIBIR  -> A la base de datos relacional y Supabase (Acumulativa, Idempotente con UPSERT / ON CONFLICT).
 
 Principios duros:
-  - Idempotencia: Cargar el MISMO archivo dos veces NO cambia el conteo en la base.
-  - Acumulatividad: Cargar datos nuevos SUMA a los viejos, nunca borra la historia.
-  - Trazabilidad: Cada fila procesada tiene un estado y motivo documentado.
+  - Idempotencia: Cargar el MISMO archivo o presionar el botón múltiples veces NO altera los saldos ni duplica registros (net change = 0).
+  - Integridad Referencial (3FN): Materiales no existentes en el maestro son rechazados con causal técnica explícita.
+  - Trazabilidad Absoluta: Cada fila procesada reporta estado, motivo y valor original.
 """
 
 import os
@@ -136,9 +136,12 @@ def validar_y_normalizar_fecha(fecha_str):
 
 def previsualizar_archivo(nombre_archivo, contenido_bytes, tipo_documento='movimientos_inventario', n_filas=8):
     """
-    Paso 1 y 2: Previsualiza el archivo, detecta metadatos y valida estructura de columnas.
+    Paso 1 y 2: Previsualiza el archivo, calcula hashes criptográficos y valida estructura de columnas.
     """
     tamano_kb = round(len(contenido_bytes) / 1024, 2)
+    hash_sha256 = hashlib.sha256(contenido_bytes).hexdigest()
+    hash_md5 = hashlib.md5(contenido_bytes).hexdigest()
+    
     texto, delimitador, codificacion = detectar_delimitador_y_codificacion(contenido_bytes)
     
     try:
@@ -148,6 +151,8 @@ def previsualizar_archivo(nombre_archivo, contenido_bytes, tipo_documento='movim
             'valido': False,
             'nombre_archivo': os.path.basename(nombre_archivo),
             'tamano_kb': tamano_kb,
+            'hash_archivo_sha256': hash_sha256,
+            'hash_archivo_md5': hash_md5,
             'mensaje': f"No se pudo estructurar el archivo CSV: {str(e)}",
             'columnas': [],
             'filas_total': 0,
@@ -167,6 +172,8 @@ def previsualizar_archivo(nombre_archivo, contenido_bytes, tipo_documento='movim
         'valido': len(faltantes) == 0,
         'nombre_archivo': os.path.basename(nombre_archivo),
         'tamano_kb': tamano_kb,
+        'hash_archivo_sha256': hash_sha256,
+        'hash_archivo_md5': hash_md5,
         'codificacion': codificacion,
         'delimitador': delimitador,
         'filas_total': len(df),
@@ -179,7 +186,12 @@ def previsualizar_archivo(nombre_archivo, contenido_bytes, tipo_documento='movim
 
 def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_documento='movimientos_inventario', usuario='Planeador de Abastecimiento'):
     """
-    Ejecuta el pipeline completo de los 5 pasos de ingesta de datos con trazabilidad individual por fila.
+    Ejecuta el pipeline completo de los 5 pasos de ingesta de datos con:
+      1. Cálculo de Hashes (SHA256 / MD5) para idempotencia global.
+      2. Validación estructural y relacional (3FN) estricta.
+      3. Claves determinísticas por fila y sentencias UPSERT (ON CONFLICT).
+      4. Sincronización idempotente con Supabase.
+      5. Tarjeta de auditoría cuantitativa de 5 puntos.
     """
     base_datos.inicializar_esquema()
     conn = base_datos.get_connection()
@@ -188,25 +200,35 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
     id_carga = str(uuid.uuid4())
     timestamp_carga = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    # PASO 1: ESCOGER & Lectura con detección automática
+    # Hashes criptográficos del archivo para idempotencia global
     if isinstance(contenido_bytes_o_str, bytes):
-        texto, delimitador, _ = detectar_delimitador_y_codificacion(contenido_bytes_o_str)
+        raw_bytes = contenido_bytes_o_str
+        texto, delimitador, _ = detectar_delimitador_y_codificacion(raw_bytes)
         stream = io.StringIO(texto)
     elif isinstance(contenido_bytes_o_str, str) and os.path.exists(contenido_bytes_o_str):
         with open(contenido_bytes_o_str, 'rb') as f:
-            texto, delimitador, _ = detectar_delimitador_y_codificacion(f.read())
+            raw_bytes = f.read()
+        texto, delimitador, _ = detectar_delimitador_y_codificacion(raw_bytes)
         stream = io.StringIO(texto)
     else:
+        raw_bytes = str(contenido_bytes_o_str).encode('utf-8')
         stream = io.StringIO(str(contenido_bytes_o_str))
         delimitador = ','
+        
+    hash_archivo_sha256 = hashlib.sha256(raw_bytes).hexdigest()
+    hash_archivo_md5 = hashlib.md5(raw_bytes).hexdigest()
         
     try:
         df_raw = pd.read_csv(stream, sep=delimitador)
     except Exception as e:
+        conn.close()
         return {
             'status': 'error_lectura',
             'mensaje': f'Paso 1 fallido: Error de parseo en archivo CSV: {str(e)}',
-            'filas_leidas': 0, 'filas_cargadas': 0, 'filas_rechazadas': 0
+            'hash_archivo_sha256': hash_archivo_sha256,
+            'hash_archivo_md5': hash_archivo_md5,
+            'filas_leidas': 0, 'filas_cargadas': 0, 'filas_rechazadas': 0,
+            'total_registros_procesados': 0, 'estado_carga': 'Rechazado'
         }
 
     filas_leidas = len(df_raw)
@@ -218,19 +240,34 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
     
     faltantes = [c for c in cols_esperadas if c not in cols_presentes]
     if faltantes:
+        conn.close()
         return {
             'status': 'error_validacion',
             'mensaje': f'Paso 2 fallido: Faltan columnas estructurales: {faltantes}',
+            'hash_archivo_sha256': hash_archivo_sha256,
+            'hash_archivo_md5': hash_archivo_md5,
             'columnas_esperadas': cols_esperadas,
             'columnas_presentes': cols_presentes,
             'filas_leidas': filas_leidas,
+            'total_registros_procesados': filas_leidas,
+            'filas_insertadas': 0,
+            'filas_actualizadas': 0,
+            'filas_insertadas_o_actualizadas': 0,
             'filas_cargadas': 0,
-            'filas_rechazadas': filas_leidas
+            'filas_omitidas_duplicadas': 0,
+            'filas_rechazadas': filas_leidas,
+            'estado_carga': 'Rechazado',
+            'trazabilidad_filas': [{
+                'fila': i + 1, 'identificador': f"Fila {i + 1}", 'estado': 'RECHAZADA',
+                'motivo': 'Columnas estructurales faltantes', 'detalle': f"El archivo carece de {faltantes}",
+                'valor_original': 'Encabezado CSV inválido'
+            } for i in range(min(filas_leidas, 10))]
         }
 
     # PASOS 3, 4 y 5: NORMALIZACIÓN, AUDITORÍA FILA A FILA Y ESCRITURA IDEMPOTENTE
     trazabilidad_filas = []
     filas_insertadas = 0
+    filas_actualizadas = 0
     filas_omitidas_duplicadas = 0
     filas_rechazadas = 0
     
@@ -240,6 +277,9 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
     # Conjunto para rastrear duplicados dentro del mismo archivo CSV
     hashes_vistos_en_archivo = set()
     
+    # -------------------------------------------------------------
+    # TABLA: movimientos_inventarios
+    # -------------------------------------------------------------
     if tipo_documento == 'movimientos_inventario':
         cur.execute("SELECT count(*) FROM movimientos_inventarios;")
         conteo_previo = cur.fetchone()[0]
@@ -247,14 +287,36 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
         for idx, row in df_raw.iterrows():
             num_fila = idx + 1
             fecha_raw = row.get('fecha')
-            sku = str(row.get('sku', '')).strip().upper()
+            sku = str(row.get('sku', '')).strip().upper() if pd.notna(row.get('sku')) else ''
             tipo_mov = str(row.get('tipo_movimiento', '')).strip().lower()
             cant_raw = row.get('cantidad')
             doc = str(row.get('documento', f'DOC-{num_fila}')).strip()
             bodega = str(row.get('bodega', 'BOD-01')).strip()
             usr = str(row.get('usuario', 'OP-AUTO')).strip()
             
-            # 1. Validación de fecha
+            # Validación de SKU obligatorio
+            if not sku:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': f"Fila {num_fila} / {doc}", 'estado': 'RECHAZADA',
+                    'motivo': 'Campo obligatorio nulo (SKU)', 'detalle': "El código SKU es obligatorio en movimientos de inventario.",
+                    'valor_original': ''
+                })
+                continue
+                
+            # Integridad referencial (3FN): SKU debe existir en maestro_materiales
+            cur.execute("SELECT 1 FROM maestro_materiales WHERE sku = ?;", (sku,))
+            if cur.fetchone() is None:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': f"{sku} / {doc}", 'estado': 'RECHAZADA',
+                    'motivo': 'Inconsistencia referencial (SKU huérfano)',
+                    'detalle': f"El SKU '{sku}' no existe en el catálogo maestro de materiales.",
+                    'valor_original': sku
+                })
+                continue
+            
+            # Validación de fecha de movimiento
             fecha_norm, err_fecha = validar_y_normalizar_fecha(fecha_raw)
             if err_fecha:
                 filas_rechazadas += 1
@@ -264,7 +326,7 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 })
                 continue
                 
-            # 2. Validación de cantidad
+            # Validación de cantidad numérica
             try:
                 cantidad = abs(float(cant_raw))
                 if np.isnan(cantidad):
@@ -278,32 +340,32 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 })
                 continue
                 
-            # 3. Normalización de tipo
+            # Normalización de tipo
             if tipo_mov not in ['entrada', 'salida', 'ajuste']:
                 tipo_mov = 'salida' if 'sal' in tipo_mov else 'entrada'
                 
-            # 4. Hash determinístico para IDEMPOTENCIA
-            id_mov = hashlib.sha256(f"{fecha_norm}_{sku}_{tipo_mov}_{cantidad}_{doc}".encode()).hexdigest()[:24]
+            # Clave natural determinística (Hash SHA256) para Idempotencia
+            id_mov = hashlib.sha256(f"{fecha_norm}_{sku}_{tipo_mov}_{cantidad}_{doc}".encode('utf-8')).hexdigest()[:24]
             
-            # Duplicado dentro del mismo archivo
+            # Idempotencia intra-archivo
             if id_mov in hashes_vistos_en_archivo:
                 filas_omitidas_duplicadas += 1
                 trazabilidad_filas.append({
                     'fila': num_fila, 'identificador': f"{sku} / {doc}", 'estado': 'OMITIDA_DUPLICADA',
                     'motivo': 'Registro duplicado dentro del mismo archivo CSV',
-                    'detalle': f"Transacción idéntica a una fila previa en el lote.", 'valor_original': str(cant_raw)
+                    'detalle': "Transacción idéntica a una fila previa en el lote CSV.", 'valor_original': str(cant_raw)
                 })
                 continue
             hashes_vistos_en_archivo.add(id_mov)
             
-            # Consultar si ya existe en la base de datos
+            # Idempotencia en base de datos: ON CONFLICT (id_movimiento) DO NOTHING
             cur.execute("SELECT 1 FROM movimientos_inventarios WHERE id_movimiento = ?;", (id_mov,))
             if cur.fetchone() is not None:
                 filas_omitidas_duplicadas += 1
                 trazabilidad_filas.append({
                     'fila': num_fila, 'identificador': f"{sku} / {doc}", 'estado': 'OMITIDA_EXISTENTE',
                     'motivo': 'Registro idéntico ya existente en Kardex (Idempotencia)',
-                    'detalle': f"La transacción {id_mov} ya fue asentada previamente. No se duplica.",
+                    'detalle': f"La transacción {id_mov} ya fue asentada previamente. No se duplica ni altera saldos.",
                     'valor_original': f"{fecha_norm} | {cantidad} unids"
                 })
             else:
@@ -322,20 +384,53 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
         cur.execute("SELECT count(*) FROM movimientos_inventarios;")
         conteo_posterior = cur.fetchone()[0]
 
+    # -------------------------------------------------------------
+    # TABLA: ordenes_compra
+    # -------------------------------------------------------------
     elif tipo_documento == 'ordenes_compra':
         cur.execute("SELECT count(*) FROM ordenes_compra;")
         conteo_previo = cur.fetchone()[0]
         
         for idx, row in df_raw.iterrows():
             num_fila = idx + 1
-            oc = str(row.get('orden_compra', '')).strip().upper()
-            sku = str(row.get('sku', '')).strip().upper()
+            oc = str(row.get('orden_compra', '')).strip().upper() if pd.notna(row.get('orden_compra')) else ''
+            sku = str(row.get('sku', '')).strip().upper() if pd.notna(row.get('sku')) else ''
             fp_raw = row.get('fecha_pedido')
             fr_raw = row.get('fecha_recepcion')
             cant_raw = row.get('cantidad')
             costo_raw = row.get('costo_unitario', 0.0)
             prov = str(row.get('proveedor', 'Proveedor E2')).strip()
             
+            if not oc:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': f"Fila {num_fila}", 'estado': 'RECHAZADA',
+                    'motivo': 'Campo obligatorio nulo (Número de Orden)', 'detalle': "El número de orden de compra es obligatorio.",
+                    'valor_original': ''
+                })
+                continue
+
+            if not sku:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': f"OC {oc}", 'estado': 'RECHAZADA',
+                    'motivo': 'Campo obligatorio nulo (SKU)', 'detalle': "El código SKU es obligatorio en la orden de compra.",
+                    'valor_original': ''
+                })
+                continue
+
+            # Integridad referencial: SKU debe existir en maestro_materiales
+            cur.execute("SELECT 1 FROM maestro_materiales WHERE sku = ?;", (sku,))
+            if cur.fetchone() is None:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': f"OC {oc} / {sku}", 'estado': 'RECHAZADA',
+                    'motivo': 'Inconsistencia referencial (SKU huérfano)',
+                    'detalle': f"El SKU '{sku}' no existe en el catálogo maestro de materiales.",
+                    'valor_original': sku
+                })
+                continue
+                
             fp_norm, err_fp = validar_y_normalizar_fecha(fp_raw)
             if err_fp:
                 filas_rechazadas += 1
@@ -345,11 +440,20 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 })
                 continue
                 
-            fr_norm, _ = (validar_y_normalizar_fecha(fr_raw) if pd.notna(fr_raw) else (None, None))
+            fr_norm, err_fr = (validar_y_normalizar_fecha(fr_raw) if pd.notna(fr_raw) and str(fr_raw).strip() else (None, None))
+            if err_fr:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': f"OC {oc} / {sku}", 'estado': 'RECHAZADA',
+                    'motivo': 'Fecha de recepción inválida', 'detalle': err_fr, 'valor_original': str(fr_raw)
+                })
+                continue
             
             try:
                 cant = abs(float(cant_raw))
                 costo = abs(float(costo_raw)) if pd.notna(costo_raw) else 0.0
+                if np.isnan(cant) or np.isnan(costo):
+                    raise ValueError("NaN")
             except Exception as e:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
@@ -358,16 +462,41 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 })
                 continue
                 
-            cur.execute("SELECT 1 FROM ordenes_compra WHERE orden_compra = ?;", (oc,))
-            ya_existe = cur.fetchone() is not None
-            
-            if ya_existe:
+            # Idempotencia intra-archivo
+            if oc in hashes_vistos_en_archivo:
                 filas_omitidas_duplicadas += 1
                 trazabilidad_filas.append({
-                    'fila': num_fila, 'identificador': f"OC {oc}", 'estado': 'OMITIDA_EXISTENTE',
-                    'motivo': 'Orden de Compra ya existente (Idempotencia)',
-                    'detalle': f"La orden {oc} ya está asentada en el sistema.", 'valor_original': oc
+                    'fila': num_fila, 'identificador': f"OC {oc}", 'estado': 'OMITIDA_DUPLICADA',
+                    'motivo': 'Orden de compra duplicada en el mismo lote CSV',
+                    'detalle': f"La orden {oc} se repite en este archivo.", 'valor_original': oc
                 })
+                continue
+            hashes_vistos_en_archivo.add(oc)
+
+            cur.execute("SELECT cantidad, costo_unitario, estado FROM ordenes_compra WHERE orden_compra = ?;", (oc,))
+            fila_ant = cur.fetchone()
+            
+            if fila_ant is not None:
+                if fila_ant[0] == cant and fila_ant[1] == costo:
+                    filas_omitidas_duplicadas += 1
+                    trazabilidad_filas.append({
+                        'fila': num_fila, 'identificador': f"OC {oc}", 'estado': 'OMITIDA_EXISTENTE',
+                        'motivo': 'Orden de Compra idéntica ya existente (Idempotencia)',
+                        'detalle': f"La orden {oc} ya está asentada sin cambios.", 'valor_original': oc
+                    })
+                else:
+                    # UPSERT: ON CONFLICT (orden_compra) DO UPDATE
+                    cur.execute("""
+                    UPDATE ordenes_compra
+                    SET sku = ?, proveedor = ?, cantidad = ?, fecha_pedido = ?, fecha_recepcion = ?, costo_unitario = ?
+                    WHERE orden_compra = ?;
+                    """, (sku, prov, cant, fp_norm, fr_norm, costo, oc))
+                    filas_actualizadas += 1
+                    trazabilidad_filas.append({
+                        'fila': num_fila, 'identificador': f"OC {oc}", 'estado': 'ACTUALIZADA',
+                        'motivo': 'Orden de Compra actualizada (UPSERT)',
+                        'detalle': f"La orden {oc} fue actualizada con nueva cantidad/costo ({cant} unids).", 'valor_original': oc
+                    })
             else:
                 cur.execute("""
                 INSERT INTO ordenes_compra (orden_compra, sku, proveedor, cantidad, fecha_pedido, fecha_recepcion, costo_unitario, estado)
@@ -384,46 +513,115 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
         cur.execute("SELECT count(*) FROM ordenes_compra;")
         conteo_posterior = cur.fetchone()[0]
 
+    # -------------------------------------------------------------
+    # TABLA: conteo_fisico
+    # -------------------------------------------------------------
     elif tipo_documento == 'conteo_fisico':
         cur.execute("SELECT count(*) FROM conteo_fisico;")
         conteo_previo = cur.fetchone()[0]
         
         for idx, row in df_raw.iterrows():
             num_fila = idx + 1
-            sku = str(row.get('sku', '')).strip().upper()
+            sku = str(row.get('sku', '')).strip().upper() if pd.notna(row.get('sku')) else ''
             stock_raw = row.get('stock_fisico_contado')
-            fecha_conteo = str(row.get('fecha_conteo', datetime.now().strftime('%Y-%m-%d')))
+            fecha_conteo = str(row.get('fecha_conteo', datetime.now().strftime('%Y-%m-%d'))).strip()
             
+            # Validación SKU obligatorio
+            if not sku:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': f"Fila {num_fila}", 'estado': 'RECHAZADA',
+                    'motivo': 'Campo obligatorio nulo (SKU)', 'detalle': "El código SKU es obligatorio y no puede estar vacío.",
+                    'valor_original': ''
+                })
+                continue
+                
+            # Validación integridad referencial (3FN): SKU debe existir en maestro_materiales
+            cur.execute("SELECT 1 FROM maestro_materiales WHERE sku = ?;", (sku,))
+            if cur.fetchone() is None:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': sku, 'estado': 'RECHAZADA',
+                    'motivo': 'Inconsistencia referencial (SKU huérfano)',
+                    'detalle': f"El SKU '{sku}' no existe en el catálogo maestro de materiales.",
+                    'valor_original': sku
+                })
+                continue
+                
+            # Validación numérica de conteo
             try:
                 stock_contado = abs(float(stock_raw))
+                if np.isnan(stock_contado):
+                    raise ValueError("NaN")
             except Exception:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
                     'fila': num_fila, 'identificador': sku, 'estado': 'RECHAZADA',
-                    'motivo': 'Conteo físico no numérico', 'detalle': f"Valor inválido '{stock_raw}'",
+                    'motivo': 'Conteo físico no numérico o inválido', 'detalle': f"Valor inválido '{stock_raw}'",
                     'valor_original': str(stock_raw)
                 })
                 continue
                 
+            # Validación de fecha de conteo
+            fecha_norm, err_fecha = validar_y_normalizar_fecha(fecha_conteo)
+            if err_fecha:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': sku, 'estado': 'RECHAZADA',
+                    'motivo': 'Fecha de conteo inválida', 'detalle': err_fecha,
+                    'valor_original': str(fecha_conteo)
+                })
+                continue
+
+            # Idempotencia intra-archivo
+            if sku in hashes_vistos_en_archivo:
+                filas_omitidas_duplicadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': sku, 'estado': 'OMITIDA_DUPLICADA',
+                    'motivo': 'Registro duplicado dentro del mismo archivo CSV',
+                    'detalle': f"El SKU '{sku}' ya fue especificado en una fila previa de este archivo.",
+                    'valor_original': str(stock_contado)
+                })
+                continue
+            hashes_vistos_en_archivo.add(sku)
+                
             cur.execute("SELECT stock_fisico_contado FROM conteo_fisico WHERE sku = ?;", (sku,))
             fila_ant = cur.fetchone()
             
-            if fila_ant is not None and fila_ant[0] == stock_contado:
-                filas_omitidas_duplicadas += 1
-                trazabilidad_filas.append({
-                    'fila': num_fila, 'identificador': sku, 'estado': 'OMITIDA_EXISTENTE',
-                    'motivo': 'Conteo físico idéntico ya registrado', 'detalle': f"Stock {stock_contado} unids sin variación.",
-                    'valor_original': str(stock_contado)
-                })
+            if fila_ant is not None:
+                if fila_ant[0] == stock_contado:
+                    filas_omitidas_duplicadas += 1
+                    trazabilidad_filas.append({
+                        'fila': num_fila, 'identificador': sku, 'estado': 'OMITIDA_EXISTENTE',
+                        'motivo': 'Conteo físico idéntico ya registrado (Idempotencia)',
+                        'detalle': f"Stock {stock_contado} unidades sin variación respecto a la base.",
+                        'valor_original': str(stock_contado)
+                    })
+                else:
+                    # UPSERT: ON CONFLICT(sku) DO UPDATE
+                    cur.execute("""
+                    UPDATE conteo_fisico 
+                    SET stock_fisico_contado = ?, fecha_conteo = ?, auditor = ?
+                    WHERE sku = ?;
+                    """, (stock_contado, fecha_norm, usuario, sku))
+                    filas_actualizadas += 1
+                    trazabilidad_filas.append({
+                        'fila': num_fila, 'identificador': sku, 'estado': 'ACTUALIZADA',
+                        'motivo': 'Conteo físico actualizado (UPSERT)',
+                        'detalle': f"Stock físico actualizado de {fila_ant[0]} a {stock_contado} unidades.",
+                        'valor_original': str(stock_contado)
+                    })
             else:
+                # INSERT nuevo
                 cur.execute("""
-                INSERT OR REPLACE INTO conteo_fisico (sku, stock_fisico_contado, fecha_conteo, auditor)
+                INSERT INTO conteo_fisico (sku, stock_fisico_contado, fecha_conteo, auditor)
                 VALUES (?, ?, ?, ?);
-                """, (sku, stock_contado, fecha_conteo, usuario))
+                """, (sku, stock_contado, fecha_norm, usuario))
                 filas_insertadas += 1
                 trazabilidad_filas.append({
-                    'fila': num_fila, 'identificador': sku, 'estado': 'ACTUALIZADA' if fila_ant else 'INSERTADA',
-                    'motivo': 'Conforme', 'detalle': f"Conteo físico asentado en {stock_contado} unidades.",
+                    'fila': num_fila, 'identificador': sku, 'estado': 'INSERTADA',
+                    'motivo': 'Conforme',
+                    'detalle': f"Conteo físico asentado en {stock_contado} unidades.",
                     'valor_original': str(stock_contado)
                 })
 
@@ -431,19 +629,144 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
         cur.execute("SELECT count(*) FROM conteo_fisico;")
         conteo_posterior = cur.fetchone()[0]
 
+    # -------------------------------------------------------------
+    # TABLA: maestro_materiales
+    # -------------------------------------------------------------
+    elif tipo_documento == 'maestro_materiales':
+        cur.execute("SELECT count(*) FROM maestro_materiales;")
+        conteo_previo = cur.fetchone()[0]
+        
+        for idx, row in df_raw.iterrows():
+            num_fila = idx + 1
+            sku = str(row.get('sku', '')).strip().upper() if pd.notna(row.get('sku')) else ''
+            desc = str(row.get('descripcion', '')).strip()
+            cat_raw = row.get('categoria', 'General')
+            cat = normalizar_texto_categoria(cat_raw)
+            uni_raw = row.get('unidad', 'unidad')
+            uni = normalizar_texto_unidad(uni_raw)
+            costo_raw = row.get('costo_unitario', 0.0)
+            lt_raw = row.get('lead_time_declarado_dias', 7)
+            
+            if not sku:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': f"Fila {num_fila}", 'estado': 'RECHAZADA',
+                    'motivo': 'Campo obligatorio nulo (SKU)', 'detalle': "El código SKU es obligatorio y no puede estar vacío.",
+                    'valor_original': ''
+                })
+                continue
+                
+            try:
+                costo = abs(float(costo_raw))
+                lt = int(abs(float(lt_raw))) if pd.notna(lt_raw) else 7
+                if np.isnan(costo):
+                    raise ValueError("NaN")
+            except Exception as e:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': sku, 'estado': 'RECHAZADA',
+                    'motivo': 'Costo o Lead Time inválido', 'detalle': str(e),
+                    'valor_original': f"Costo: {costo_raw}, LT: {lt_raw}"
+                })
+                continue
+                
+            # Idempotencia intra-archivo
+            if sku in hashes_vistos_en_archivo:
+                filas_omitidas_duplicadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': sku, 'estado': 'OMITIDA_DUPLICADA',
+                    'motivo': 'Material duplicado en el mismo lote CSV',
+                    'detalle': f"El SKU {sku} se repite en este lote.", 'valor_original': sku
+                })
+                continue
+            hashes_vistos_en_archivo.add(sku)
+
+            cur.execute("SELECT costo_unitario, descripcion, categoria FROM maestro_materiales WHERE sku = ?;", (sku,))
+            fila_ant = cur.fetchone()
+            
+            if fila_ant is not None:
+                if fila_ant[0] == costo and fila_ant[1] == desc and fila_ant[2] == cat:
+                    filas_omitidas_duplicadas += 1
+                    trazabilidad_filas.append({
+                        'fila': num_fila, 'identificador': sku, 'estado': 'OMITIDA_EXISTENTE',
+                        'motivo': 'Registro idéntico ya existente en Maestro (Idempotencia)',
+                        'detalle': f"Material {sku} sin cambios en costo ni atributos.",
+                        'valor_original': f"${costo:,.2f}"
+                    })
+                else:
+                    cur.execute("""
+                    UPDATE maestro_materiales 
+                    SET descripcion = ?, categoria = ?, unidad = ?, costo_unitario = ?, lead_time_declarado_dias = ?
+                    WHERE sku = ?;
+                    """, (desc, cat, uni, costo, lt, sku))
+                    filas_actualizadas += 1
+                    trazabilidad_filas.append({
+                        'fila': num_fila, 'identificador': sku, 'estado': 'ACTUALIZADA',
+                        'motivo': 'Actualización de atributos (UPSERT)',
+                        'detalle': f"Material actualizado: costo ${costo:,.2f}, categoría {cat}.",
+                        'valor_original': f"${costo:,.2f}"
+                    })
+            else:
+                cur.execute("""
+                INSERT INTO maestro_materiales (sku, descripcion, categoria, unidad, costo_unitario, lead_time_declarado_dias)
+                VALUES (?, ?, ?, ?, ?, ?);
+                """, (sku, desc, cat, uni, costo, lt))
+                filas_insertadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': sku, 'estado': 'INSERTADA',
+                    'motivo': 'Conforme',
+                    'detalle': f"Nuevo material {sku} insertado en catálogo maestro.",
+                    'valor_original': f"${costo:,.2f}"
+                })
+        conn.commit()
+        cur.execute("SELECT count(*) FROM maestro_materiales;")
+        conteo_posterior = cur.fetchone()[0]
+
     else:
         filas_insertadas = filas_leidas
 
+    # Sincronización idempotente con Supabase (UPSERT)
+    sincronizacion_sb = {'status': 'skipped', 'msg': 'Sin registros válidos para sincronizar'}
+    if (filas_insertadas + filas_actualizadas) > 0:
+        try:
+            from nucleo.datos import supabase_upsert
+            tabla_sb_map = {
+                'movimientos_inventario': ('movimientos_inventarios', 'id_movimiento'),
+                'ordenes_compra': ('ordenes_compra', 'orden_compra'),
+                'conteo_fisico': ('conteo_fisico', 'sku'),
+                'maestro_materiales': ('maestro_materiales', 'sku')
+            }
+            if tipo_documento in tabla_sb_map:
+                tabla_sb, clave_conflicto = tabla_sb_map[tipo_documento]
+                payload_sb = df_raw.replace({np.nan: None}).to_dict(orient='records')
+                sincronizacion_sb = supabase_upsert(
+                    table_name=tabla_sb,
+                    payload=payload_sb,
+                    on_conflict_col=clave_conflicto,
+                    do_update=True
+                )
+        except Exception as e_sb:
+            sincronizacion_sb = {'status': 'offline_fallback', 'msg': str(e_sb)}
+
+    # Categorización cuantitativa del Estado de la Carga (Requisito 3.1)
+    filas_modificadas = filas_insertadas + filas_actualizadas
+    if filas_rechazadas == 0:
+        estado_carga = 'Exitoso'
+    elif filas_modificadas > 0 or filas_omitidas_duplicadas > 0:
+        estado_carga = 'Parcial'
+    else:
+        estado_carga = 'Rechazado'
+
     # Asentar la auditoría en la BITÁCORA DE CARGAS
-    resumen_motivos = f"{filas_leidas} leídas | {filas_insertadas} insertadas | {filas_omitidas_duplicadas} omitidas | {filas_rechazadas} rechazadas"
+    resumen_motivos = f"{filas_leidas} procesados | {filas_modificadas} insertados/actualizados | {filas_omitidas_duplicadas} omitidos | {filas_rechazadas} rechazados"
     cur.execute("""
     INSERT INTO bitacora_cargas 
-    (id, timestamp, nombre_archivo, tipo_documento, filas_leidas, filas_cargadas, filas_rechazadas, filas_omitidas_duplicadas, detalle_rechazos, usuario)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    (id, timestamp, nombre_archivo, tipo_documento, filas_leidas, filas_cargadas, filas_rechazadas, filas_omitidas_duplicadas, detalle_rechazos, usuario, hash_archivo_sha256)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """, (
         id_carga, timestamp_carga, os.path.basename(nombre_archivo), tipo_documento,
-        filas_leidas, filas_insertadas, filas_rechazadas, filas_omitidas_duplicadas,
-        resumen_motivos, usuario
+        filas_leidas, filas_modificadas, filas_rechazadas, filas_omitidas_duplicadas,
+        resumen_motivos, usuario, hash_archivo_sha256
     ))
     conn.commit()
     conn.close()
@@ -454,14 +777,22 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
         'timestamp': timestamp_carga,
         'nombre_archivo': os.path.basename(nombre_archivo),
         'tipo_documento': tipo_documento,
+        'hash_archivo_sha256': hash_archivo_sha256,
+        'hash_archivo_md5': hash_archivo_md5,
+        'estado_carga': estado_carga,
+        'total_registros_procesados': filas_leidas,
         'filas_leidas': filas_leidas,
         'filas_insertadas': filas_insertadas,
+        'filas_actualizadas': filas_actualizadas,
+        'filas_insertadas_o_actualizadas': filas_modificadas,
+        'filas_cargadas': filas_modificadas,
         'filas_omitidas_duplicadas': filas_omitidas_duplicadas,
         'filas_rechazadas': filas_rechazadas,
         'conteo_base_antes': conteo_previo,
         'conteo_base_despues': conteo_posterior,
         'cambio_neto_base': conteo_posterior - conteo_previo,
-        'es_idempotente': (conteo_posterior == conteo_previo) if (filas_leidas > 0 and filas_insertadas == 0 and filas_rechazadas == 0) else True,
+        'es_idempotente': (conteo_posterior == conteo_previo) if (filas_leidas > 0 and filas_modificadas == 0 and filas_rechazadas == 0) else True,
+        'sincronizacion_supabase': sincronizacion_sb,
         'resumen_ejecutivo': resumen_motivos,
         'trazabilidad_filas': trazabilidad_filas
     }
