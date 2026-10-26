@@ -19,8 +19,9 @@ import threading
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
+import numpy as np
 import orquestador
-from nucleo import datos, ingesta, instrumentacion, base_datos
+from nucleo import datos, ingesta, instrumentacion, base_datos, eri
 
 PORT = 8501
 
@@ -648,15 +649,19 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 <nav class="nav-tabs">
                     <button class="tab-btn active" onclick="cambiarPestana('tab-control')">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-                        <span>Tablero de Control</span>
+                        <span>Tablero de Control y Recomendaciones</span>
                     </button>
                     <button class="tab-btn" onclick="cambiarPestana('tab-demanda')">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-                        <span>Demanda y Parámetros</span>
+                        <span>Módulo de Abastecimiento (BOM)</span>
+                    </button>
+                    <button class="tab-btn" onclick="cambiarPestana('tab-reconciliacion')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        <span>Módulo de Reconciliación (ERI)</span>
                     </button>
                     <button class="tab-btn" onclick="cambiarPestana('tab-ingesta')">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <span>Ingesta de Datos</span>
+                        <span>Ingesta de Datos e Idempotencia</span>
                     </button>
                     <button class="tab-btn" onclick="cambiarPestana('tab-telemetria')">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
@@ -669,7 +674,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
 
     <main>
         <!-- ======================================================== -->
-        <!-- PESTAÑA 1: TABLERO DE CONTROL Y SUPERVISIÓN HUMANA        -->
+        <!-- PESTAÑA 1: TABLERO DE CONTROL Y RECOMENDACIONES DE PEDIDOS -->
         <!-- ======================================================== -->
         <div id="tab-control" class="tab-content active">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -688,7 +693,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             <!-- Grid de Indicadores Clave -->
             <div class="kpi-grid">
                 <div class="kpi-card">
-                    <div class="kpi-label">Exactitud de Registro (ERI)</div>
+                    <div class="kpi-label">Exactitud de Registro (ERI / IRA)</div>
                     <div id="kpiEri" class="kpi-value">-- %</div>
                     <div class="kpi-footer">
                         <span id="badgeEri" class="kpi-badge badge-neutral">Tolerancia ±5%</span>
@@ -716,7 +721,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                     <div id="kpiDiscrepancias" class="kpi-value" style="color: var(--warning-text);">--</div>
                     <div class="kpi-footer">
                         <span class="kpi-badge badge-warning">Desfases Detectados</span>
-                        <span>Fantasmas y Muelle</span>
+                        <span>Muelle y Faltantes</span>
                     </div>
                 </div>
             </div>
@@ -732,12 +737,12 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Tabla de Propuestas de Compra -->
+            <!-- Tabla de Recomendaciones Inteligentes del Agente -->
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Recomendaciones de Reposición Emitidas por el Asistente</div>
-                        <div class="card-subtitle">Evalúe la justificación analítica y determine la autorización o desestimación de cada orden para su registro en la base de datos.</div>
+                        <div class="card-title">Recomendaciones Inteligentes de Pedidos del Agente de Abastecimiento</div>
+                        <div class="card-subtitle">Decisiones sugeridas: material a pedir, lote económico exacto (EOQ), condición de emisión al tocar el ROP y justificación en dinero del riesgo evitado.</div>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -745,17 +750,18 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                         <thead>
                             <tr>
                                 <th>Insumo / Referencia</th>
-                                <th>Clasificación ABC</th>
-                                <th>Stock Físico</th>
+                                <th>Clasificación y Prioridad</th>
+                                <th>Inventario Físico</th>
                                 <th>Punto de Reorden (ROP)</th>
                                 <th>Cantidad Sugerida (EOQ)</th>
-                                <th style="width: 44%;">Justificación Analítica Cuantitativa</th>
+                                <th>Condición de Emisión</th>
+                                <th style="width: 38%;">Justificación en Dinero del Riesgo Evitado</th>
                                 <th>Decisión Requerida</th>
                             </tr>
                         </thead>
                         <tbody id="tablaPropuestasBody">
                             <tr>
-                                <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
+                                <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
                                     Presione <strong>"Ejecutar Análisis Integral"</strong> para evaluar el estado actual del inventario.
                                 </td>
                             </tr>
@@ -766,14 +772,14 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
         </div>
 
         <!-- ======================================================== -->
-        <!-- PESTAÑA 2: ANÁLISIS DE DEMANDA Y PARÁMETROS               -->
+        <!-- PESTAÑA 2: MÓDULO DE ABASTECIMIENTO Y DEMANDA BOM        -->
         <!-- ======================================================== -->
         <div id="tab-demanda" class="tab-content">
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Distribución Pareto ABC de Materiales (Demanda por Valor D × Cu)</div>
-                        <div class="card-subtitle">Segmentación financiera acumulada según la regla corporativa 80-15-5 para focalización del control operativo.</div>
+                        <div class="card-title">Módulo de Abastecimiento y Planificación de Demanda Dependiente</div>
+                        <div class="card-subtitle">Explosión de requerimientos brutos sobre la matriz de recetas BOM y dimensionamiento dinámico de reposición (ROP, SS, EOQ).</div>
                     </div>
                 </div>
                 <div class="kpi-grid" id="paretoGrid">
@@ -795,11 +801,27 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 </div>
             </div>
 
+            <!-- Panel de Análisis de Demanda Dependiente por Líneas de Muebles -->
+            <div class="card" style="background: var(--bg-surface-elevated); margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <div style="font-weight: 600; font-size: 0.95rem; color: #FFFFFF;">Demanda Dependiente Derivada del Plan Maestro de Muebles Metálicos</div>
+                    <span class="kpi-badge badge-neutral">Explosión Matricial Plan × BOM</span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.825rem; color: var(--text-secondary);">
+                    <div style="background: var(--bg-surface); padding: 0.85rem; border-radius: var(--radius-sm); border-left: 3px solid #38BDF8;">
+                        <strong style="color: #F8FAFC;">Línea de Archivadores (ARC):</strong> Demanda mensual pico de hasta 501 unidades (+106.1%). Exige hasta 7.76 láminas de acero y 6.46 juegos de correderas por mueble terminado.
+                    </div>
+                    <div style="background: var(--bg-surface); padding: 0.85rem; border-radius: var(--radius-sm); border-left: 3px solid #10B981;">
+                        <strong style="color: #F8FAFC;">Línea de Estanterías (EST):</strong> Demanda mensual pico de hasta 444 unidades (+87.2%). Alto consumo de tubería, perfiles estructurales y pintura electrostática en polvo.
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Matriz Analítica de Reposición y Explosión de Materiales (BOM)</div>
-                        <div class="card-subtitle">Cálculos matemáticos de consumo diario (d), desviación estándar (σd), stock de seguridad (SS) y punto de reorden (ROP).</div>
+                        <div class="card-title">Matriz Analítica de Reposición y Parámetros Dinámicos</div>
+                        <div class="card-subtitle">Consumo diario (d), desviación estándar (σd), Lead Time auditado (LT), Stock de Seguridad probabilístico (SS), Punto de Reorden (ROP) y Lote Económico (EOQ).</div>
                     </div>
                     <div class="filter-bar">
                         <input type="text" id="filtroSkuDemanda" class="search-input" placeholder="Buscar por Número de SKU, descripción o familia..." oninput="filtrarTablaDemanda()">
@@ -822,7 +844,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                                 <th>Demanda Anual (D)</th>
                                 <th>Consumo Diario (d)</th>
                                 <th>Desviación (σd)</th>
-                                <th>Tiempo de Entrega (LT)</th>
+                                <th>Lead Time Auditado (LT)</th>
                                 <th>Stock de Seguridad (SS)</th>
                                 <th>Punto de Reorden (ROP)</th>
                                 <th>Lote Económico (EOQ)</th>
@@ -831,6 +853,88 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                         </thead>
                         <tbody id="tablaDemandaBody">
                             <tr><td colspan="12" style="text-align: center; padding: 2rem; color: var(--text-muted);">Cargando matriz analítica de abastecimiento...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- PESTAÑA 3: MÓDULO DE RECONCILIACIÓN Y EXACTITUD (ERI)    -->
+        <!-- ======================================================== -->
+        <div id="tab-reconciliacion" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Módulo de Reconciliación de Inventario y Exactitud de Registro (ERI / IRA)</div>
+                        <div class="card-subtitle">Reconciliación matemática entre el Kardex canónico relacional y el conteo físico en bodega bajo tolerancia del ±5%.</div>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="cargarMatrizReconciliacion()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                        <span>Actualizar Reconciliación</span>
+                    </button>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Exactitud de Registro (ERI / IRA)</div>
+                        <div id="recEriPct" class="kpi-value" style="color: var(--success-text);">-- %</div>
+                        <div class="kpi-footer">Meta World-Class: 95.0%</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Materiales Concordantes (±5%)</div>
+                        <div id="recConcordantes" class="kpi-value">--</div>
+                        <div class="kpi-footer">Dentro del umbral de tolerancia</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Desfases en Muelle de Recepción</div>
+                        <div id="recDesfases" class="kpi-value" style="color: #60A5FA;">--</div>
+                        <div class="kpi-footer">Físico > Kardex (Pendientes de asentar)</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Faltantes en Piso / No Localizados</div>
+                        <div id="recFantasmas" class="kpi-value" style="color: var(--danger-text);">--</div>
+                        <div class="kpi-footer">Kardex > Físico (Riesgo parada de ensamble)</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Impacto Financiero de Discrepancias</div>
+                        <div id="recImpactoTotal" class="kpi-value" style="font-size: 1.55rem; color: var(--warning-text);">$ --</div>
+                        <div class="kpi-footer">Valoración total de descuadres en COP</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Detalle Pericial de Reconciliación por Referencia</div>
+                        <div class="card-subtitle">Comparativa entre saldo teórico reconstruido y conteo auditado con clasificación de causa raíz.</div>
+                    </div>
+                    <div class="filter-bar">
+                        <input type="text" id="filtroSkuReconciliacion" class="search-input" placeholder="Buscar material o SKU..." oninput="filtrarTablaReconciliacion()">
+                        <select id="filtroTipoReconciliacion" class="form-select" style="max-width: 220px;" onchange="filtrarTablaReconciliacion()">
+                            <option value="">Todos los Diagnósticos</option>
+                            <option value="Concordante">Concordantes (±5%)</option>
+                            <option value="Muelle">Desfases en Muelle (Físico > Kardex)</option>
+                            <option value="Faltante">Faltantes en Piso (Kardex > Físico)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive" style="max-height: 480px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Número de SKU</th>
+                                <th>Descripción del Material</th>
+                                <th>Familia</th>
+                                <th>Saldo Kardex Teórico</th>
+                                <th>Conteo Físico Auditado</th>
+                                <th>Discrepancia Neta</th>
+                                <th>Impacto Financiero (COP)</th>
+                                <th>Diagnóstico de Reconciliación</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaReconciliacionBody">
+                            <tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">Cargando registros de auditoría y reconciliación...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1113,16 +1217,22 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
         let trazabilidadActual = [];
         let matrizDemandaActual = [];
 
+        let matrizReconciliacionActual = [];
+
         function cambiarPestana(idTab) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(idTab).classList.add('active');
             
-            const idx = ['tab-control', 'tab-demanda', 'tab-ingesta', 'tab-telemetria'].indexOf(idTab);
-            document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+            const idx = ['tab-control', 'tab-demanda', 'tab-reconciliacion', 'tab-ingesta', 'tab-telemetria'].indexOf(idTab);
+            if (idx >= 0) {
+                document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+            }
 
             if (idTab === 'tab-demanda' && matrizDemandaActual.length === 0) {
                 cargarMatrizDemanda();
+            } else if (idTab === 'tab-reconciliacion' && matrizReconciliacionActual.length === 0) {
+                cargarMatrizReconciliacion();
             } else if (idTab === 'tab-telemetria') {
                 cargarMetricasInstrumentacion();
             }
@@ -1175,7 +1285,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             tbody.innerHTML = '';
 
             if (data.propuestas_compra.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2.5rem; color: #10B981;">No hay insumos que requieran reorden en este ciclo de operación.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2.5rem; color: #10B981;">No hay insumos que requieran reorden en este ciclo de operación.</td></tr>';
                 return;
             }
 
@@ -1194,15 +1304,32 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                         </span><br>
                         <small style="color: var(--text-muted);">Prioridad ${p.prioridad || 'Media'}</small>
                     </td>
-                    <td><span class="mono">${Number(p.stock_real).toLocaleString('es-CO')}</span> ${p.unidad || 'und'}</td>
-                    <td><span class="mono" style="color: var(--warning-text);">${Number(p.punto_reorden_rop).toLocaleString('es-CO')}</span> ${p.unidad || 'und'}</td>
+                    <td>
+                        <span class="mono">${Number(p.stock_real).toLocaleString('es-CO')}</span> ${p.unidad || 'und'}<br>
+                        <small style="color: var(--text-secondary);">Cobertura: ${p.dias_cobertura_remanente || 0} d</small>
+                    </td>
+                    <td>
+                        <span class="mono" style="color: var(--warning-text); font-weight: 600;">${Number(p.punto_reorden_rop).toLocaleString('es-CO')}</span> ${p.unidad || 'und'}<br>
+                        <small style="color: var(--text-muted);">SS: ${Number(p.stock_seguridad_ss).toLocaleString('es-CO')}</small>
+                    </td>
                     <td>
                         <strong class="mono" style="color: #60A5FA; font-size: 1.05rem;">${Number(p.cantidad_sugerida_eoq).toLocaleString('es-CO')}</strong> ${p.unidad || 'und'}<br>
-                        <small style="color: var(--text-muted);">$ ${Number(p.inversion_estimada_cop).toLocaleString('es-CO')}</small>
+                        <strong style="color: var(--text-primary); font-size: 0.8rem;">$ ${Number(p.inversion_estimada_cop).toLocaleString('es-CO')} COP</strong>
+                    </td>
+                    <td>
+                        <span class="kpi-badge badge-warning" style="font-size: 0.72rem; padding: 2px 6px;">
+                            ${p.momento_emision || 'Inmediato (Stock ≤ ROP)'}
+                        </span><br>
+                        <small style="color: var(--text-secondary);">Entrega: ${p.lead_time_dias || 15} d</small>
                     </td>
                     <td>
                         <div class="justification-card">
-                            ${p.justificacion_ejecutiva}
+                            <div style="color: #F8FAFC; margin-bottom: 0.35rem; line-height: 1.45;">
+                                ${p.justificacion_ejecutiva}
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--success-text); font-weight: 600;">
+                                ✓ Riesgo financiero mitigado: $ ${Number(p.riesgo_evitado_cop || 3600000).toLocaleString('es-CO')} COP
+                            </div>
                         </div>
                     </td>
                     <td id="acciones-${p.sku}" style="white-space: nowrap;">
@@ -1212,6 +1339,68 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        async function cargarMatrizReconciliacion() {
+            try {
+                const res = await fetch('/api/reconciliacion');
+                const data = await res.json();
+                matrizReconciliacionActual = data.auditados || [];
+
+                document.getElementById('recEriPct').innerText = (data.eri_global_pct || 0) + ' %';
+                document.getElementById('recConcordantes').innerText = (data.concordantes || 0) + ' SKUs';
+                document.getElementById('recDesfases').innerText = (data.total_desfases || 0) + ' SKUs';
+                document.getElementById('recFantasmas').innerText = (data.total_fantasmas || 0) + ' SKUs';
+                document.getElementById('recImpactoTotal').innerText = '$ ' + Number(data.impacto_total_cop || 0).toLocaleString('es-CO');
+
+                renderTablaReconciliacion(matrizReconciliacionActual);
+            } catch (err) {
+                console.error('Error cargando reconciliación:', err);
+            }
+        }
+
+        function renderTablaReconciliacion(lista) {
+            const tbody = document.getElementById('tablaReconciliacionBody');
+            tbody.innerHTML = '';
+            if (lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">No hay registros de reconciliación para este filtro.</td></tr>';
+                return;
+            }
+            lista.forEach(r => {
+                const tr = document.createElement('tr');
+                let badgeClass = 'badge-neutral';
+                if (r.concordancia) badgeClass = 'badge-success';
+                else if (r.diagnostico_eri.includes('Muelle')) badgeClass = 'badge-warning';
+                else badgeClass = 'badge-danger';
+
+                tr.innerHTML = `
+                    <td class="mono" style="font-weight: 600; color: #60A5FA;">${r.sku}</td>
+                    <td>${r.descripcion}</td>
+                    <td><small style="color: var(--text-secondary);">${r.categoria}</small></td>
+                    <td class="mono">${Number(r.saldo_teorico).toLocaleString('es-CO', {maximumFractionDigits: 1})}</td>
+                    <td class="mono" style="font-weight: 600;">${Number(r.stock_fisico_contado).toLocaleString('es-CO', {maximumFractionDigits: 1})}</td>
+                    <td class="mono" style="color: ${r.discrepancia_neta === 0 ? 'var(--text-muted)' : (r.discrepancia_neta > 0 ? 'var(--danger-text)' : '#60A5FA')}">
+                        ${r.discrepancia_neta > 0 ? '+' : ''}${Number(r.discrepancia_neta).toLocaleString('es-CO', {maximumFractionDigits: 1})}
+                    </td>
+                    <td class="mono">$ ${Number(r.impacto_financiero_cop || 0).toLocaleString('es-CO')}</td>
+                    <td><span class="kpi-badge ${badgeClass}">${r.diagnostico_eri}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filtrarTablaReconciliacion() {
+            const query = document.getElementById('filtroSkuReconciliacion').value.toLowerCase();
+            const tipo = document.getElementById('filtroTipoReconciliacion').value;
+            const filtrados = matrizReconciliacionActual.filter(r => {
+                const coincideTexto = r.sku.toLowerCase().includes(query) || (r.descripcion || '').toLowerCase().includes(query) || (r.categoria || '').toLowerCase().includes(query);
+                let coincideTipo = true;
+                if (tipo === 'Concordante') coincideTipo = r.concordancia === true;
+                else if (tipo === 'Muelle') coincideTipo = (r.diagnostico_eri || '').includes('Muelle');
+                else if (tipo === 'Faltante') coincideTipo = (r.diagnostico_eri || '').includes('Faltante') || (r.diagnostico_eri || '').includes('Piso');
+                return coincideTexto && coincideTipo;
+            });
+            renderTablaReconciliacion(filtrados);
         }
 
         async function tomarDecision(sku, accion) {
@@ -1646,6 +1835,30 @@ class EnterpriseRequestHandler(SimpleHTTPRequestHandler):
             
         elif parsed.path == '/api/instrumentacion':
             res = instrumentacion.obtener_metricas_instrumentacion()
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+            
+        elif parsed.path == '/api/reconciliacion':
+            estado = datos.leer_estado()
+            res_eri = eri.auditar_eri(estado)
+            df_aud = res_eri['df_auditoria'].replace({np.nan: None})
+            res = {
+                'eri_global_pct': res_eri['eri_global_pct'],
+                'total_auditados': res_eri['total_auditados'],
+                'concordantes': res_eri['concordantes'],
+                'total_fantasmas': len(res_eri['fantasmas']),
+                'total_desfases': len(res_eri['desfases_muelle']),
+                'impacto_fantasmas_cop': res_eri['impacto_fantasmas_cop'],
+                'impacto_desfases_cop': res_eri['impacto_desfases_cop'],
+                'impacto_total_cop': res_eri['impacto_total_cop'],
+                'auditados': df_aud[[
+                    'sku', 'descripcion', 'categoria', 'saldo_teorico',
+                    'stock_fisico_contado', 'discrepancia_neta', 'discrepancia_absoluta',
+                    'impacto_financiero_cop', 'concordancia', 'diagnostico_eri'
+                ]].to_dict(orient='records')
+            }
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')
             self.end_headers()

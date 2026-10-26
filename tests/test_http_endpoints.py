@@ -124,5 +124,14 @@ class TestHttpEndpoints(unittest.TestCase):
             self.assertEqual(data.get('status'), 'completado')
             self.assertIn('trazabilidad_filas', data)
 
+    def test_08_get_api_reconciliacion(self):
+        url = f"http://127.0.0.1:{TEST_PORT}/api/reconciliacion"
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode('utf-8'))
+            self.assertIn('eri_global_pct', data)
+            self.assertIn('auditados', data)
+            self.assertGreater(len(data['auditados']), 0)
+
 if __name__ == '__main__':
     unittest.main()

@@ -1,6 +1,7 @@
 """
-Módulo del Núcleo: ERI / AUDITORÍA DE INVENTARIO (Capa 2 - FÓRMULA / Queja 3)
-Responsabilidad Única: Reconstruir Kardex canónico, contrastar con conteo físico y tipificar discrepancias.
+Módulo del Núcleo: RECONCILIACIÓN DE INVENTARIO Y EXACTITUD DE REGISTRO (ERI / IRA)
+Responsabilidad Única: Reconstruir el Kardex canónico relacional, contrastar contra auditoría física
+                       y conciliar discrepancias bajo un umbral de tolerancia del ±5%.
 Contrato:
   - auditar_eri(estado, tolerancia=0.05) -> dict: {
         'df_auditoria': DataFrame,
@@ -8,7 +9,10 @@ Contrato:
         'total_auditados': int,
         'concordantes': int,
         'fantasmas': list,
-        'desfases_muelle': list
+        'desfases_muelle': list,
+        'impacto_fantasmas_cop': float,
+        'impacto_desfases_cop': float,
+        'impacto_total_cop': float
     }
 """
 
@@ -18,15 +22,15 @@ import numpy as np
 def auditar_eri(estado, tolerancia=0.05):
     """
     Reconstruye el saldo teórico de Kardex:
-    Saldo = Inicial + Entradas - Salidas +- Ajustes
-    Compara contra conteo físico con umbral +-5%.
+      Saldo Teórico = Inventario Inicial + Entradas - Salidas ± Ajustes
+    Contrasta contra el conteo físico en piso con umbral de tolerancia del ±5%.
     """
     mm = estado['maestro_materiales']
     ii = estado['inventario_inicial']
     cf = estado['conteo_fisico']
     mov = estado['movimientos_inventario']
     
-    # 1. Agrupación de Kardex
+    # 1. Agrupación y Reconstrucción del Kardex Canónico
     mov_neto = mov.groupby(['sku', 'tipo_movimiento'])['cantidad'].sum().unstack(fill_value=0)
     entradas = mov_neto['entrada'] if 'entrada' in mov_neto.columns else pd.Series(0, index=mov_neto.index)
     salidas = mov_neto['salida'] if 'salida' in mov_neto.columns else pd.Series(0, index=mov_neto.index)
@@ -46,17 +50,17 @@ def auditar_eri(estado, tolerancia=0.05):
     df['discrepancia_absoluta'] = df['discrepancia_neta'].abs()
     df['impacto_financiero_cop'] = df['discrepancia_absoluta'] * df['costo_unitario']
     
-    # 3. Auditoría ERI
+    # 3. Auditoría de Exactitud de Registro (ERI / IRA con umbral ±5%)
     auditados = df[df['stock_fisico_contado'].notna()].copy()
     auditados['concordancia'] = (auditados['discrepancia_absoluta'] <= (tolerancia * auditados['stock_fisico_contado'])) | (auditados['discrepancia_absoluta'] == 0)
     
     def tipificar(row):
         if row['concordancia']:
-            return 'Concordante (+-5%)'
+            return 'Concordante (±5%)'
         elif row['saldo_teorico'] > row['stock_fisico_contado']:
-            return 'Material Fantasma (Kardex > Fisico)'
+            return 'Faltante en Piso / No Localizado (Kardex > Físico)'
         else:
-            return 'Desfase Muelle (Fisico > Kardex)'
+            return 'Desfase en Muelle de Recepción (Físico > Kardex)'
             
     auditados['diagnostico_eri'] = auditados.apply(tipificar, axis=1)
     
@@ -64,14 +68,21 @@ def auditar_eri(estado, tolerancia=0.05):
     concordantes = int(auditados['concordancia'].sum())
     eri_pct = float((concordantes / total_aud) * 100) if total_aud > 0 else 0.0
     
-    fantasmas = auditados[auditados['diagnostico_eri'] == 'Material Fantasma (Kardex > Fisico)'].to_dict(orient='records')
-    desfases = auditados[auditados['diagnostico_eri'] == 'Desfase Muelle (Fisico > Kardex)'].to_dict(orient='records')
+    fantasmas_df = auditados[auditados['diagnostico_eri'] == 'Faltante en Piso / No Localizado (Kardex > Físico)']
+    desfases_df = auditados[auditados['diagnostico_eri'] == 'Desfase en Muelle de Recepción (Físico > Kardex)']
+    
+    impacto_fantasmas = float(fantasmas_df['impacto_financiero_cop'].sum())
+    impacto_desfases = float(desfases_df['impacto_financiero_cop'].sum())
+    impacto_total = impacto_fantasmas + impacto_desfases
     
     return {
         'df_auditoria': auditados,
-        'eri_global_pct': eri_pct,
+        'eri_global_pct': round(eri_pct, 2),
         'total_auditados': total_aud,
         'concordantes': concordantes,
-        'fantasmas': fantasmas,
-        'desfases_muelle': desfases
+        'fantasmas': fantasmas_df.to_dict(orient='records'),
+        'desfases_muelle': desfases_df.to_dict(orient='records'),
+        'impacto_fantasmas_cop': round(impacto_fantasmas, 2),
+        'impacto_desfases_cop': round(impacto_desfases, 2),
+        'impacto_total_cop': round(impacto_total, 2)
     }

@@ -143,7 +143,36 @@ def ejecutar_orquestacion(tolerancia_eri=0.05, nivel_servicio_z=1.645):
         'criterio_parada_activado': criterio_parada,
         'mensaje_parada': mensaje_parada,
         
-        # Solución Específica Queja 1: Inconsistencia Bodega vs. Sistema
+        # Módulo de Reconciliación de Inventario y Exactitud de Registro (ERI / IRA)
+        'modulo_reconciliacion_inventario_eri': {
+            'eri_global_pct': round(res_eri['eri_global_pct'], 2),
+            'meta_world_class_pct': 95.0,
+            'total_auditados': res_eri['total_auditados'],
+            'concordantes': res_eri['concordantes'],
+            'total_fantasmas': len(res_eri['fantasmas']),
+            'total_desfases': len(res_eri['desfases_muelle']),
+            'impacto_financiero_fantasmas_cop': round(impacto_fantasmas, 2),
+            'impacto_financiero_total_cop': round(res_eri.get('impacto_total_cop', impacto_fantasmas), 2),
+            'fantasmas_detalle': [
+                {
+                    'sku': f['sku'], 'descripcion': f['descripcion'], 'categoria': f['categoria'],
+                    'saldo_sistema_kardex': round(f['saldo_teorico'], 1),
+                    'conteo_fisico_bodega': round(f['stock_fisico_contado'], 1),
+                    'faltante_en_piso': round(f['discrepancia_absoluta'], 1),
+                    'impacto_cop': round(f['impacto_financiero_cop'], 2),
+                    'costo_unitario': round(f['costo_unitario'], 2)
+                } for f in fantasmas_list
+            ],
+            'desfases_detalle': [
+                {
+                    'sku': d['sku'], 'descripcion': d['descripcion'], 'categoria': d['categoria'],
+                    'saldo_sistema_kardex': round(d['saldo_teorico'], 1),
+                    'conteo_fisico_bodega': round(d['stock_fisico_contado'], 1),
+                    'sobrante_en_piso': round(d['discrepancia_absoluta'], 1),
+                    'costo_unitario': round(d['costo_unitario'], 2)
+                } for d in desfases_list
+            ]
+        },
         'queja_1_auditoria_inventario': {
             'eri_global_pct': round(res_eri['eri_global_pct'], 2),
             'meta_world_class_pct': 95.0,
@@ -173,7 +202,15 @@ def ejecutar_orquestacion(tolerancia_eri=0.05, nivel_servicio_z=1.645):
             ]
         },
         
-        # Solución Específica Queja 2: Disparo de Demanda en Archivadores y Estanterías
+        # Módulo de Abastecimiento y Planificación de Demanda Dependiente (BOM)
+        'modulo_abastecimiento_demanda_dependiente_bom': {
+            'resumen_analitico': 'En meses pico la demanda de Archivadores (+106%) y Estanterías (+87%) satura la cobertura fija del ERP antiguo, requiriendo dimensionamiento dinámico con matriz BOM.',
+            'productos_criticos': [
+                {'linea': 'Archivadores (ARC)', 'salto_demanda': 'De 126 a 501 u/mes (+106.1%)', 'volatilidad_cv': '0.484 (Alta volatilidad)', 'impacto': 'Hasta 7.76 láminas y 6.46 correderas por unidad'},
+                {'linea': 'Estanterías (EST)', 'salto_demanda': 'De 180 a 444 u/mes (+87.2%)', 'volatilidad_cv': '0.414 (Alta volatilidad)', 'impacto': 'Alto consumo de pintura electrostática y perfiles'}
+            ],
+            'insumos_criticos_pico': insumos_criticos_pico
+        },
         'queja_2_explosion_demanda_bom': {
             'resumen_queja': 'En meses pico la demanda de Archivadores (+106%) y Estanterías (+87%) saturó el stock máximo fijo de 500 unids del ERP antiguo.',
             'productos_criticos': [

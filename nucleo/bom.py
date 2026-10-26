@@ -1,5 +1,5 @@
 """
-Módulo del Núcleo: BOM / EXPLOSIÓN DE DEMANDA (Capa 2 - FÓRMULA / Queja 4)
+Módulo del Núcleo: BOM / EXPLOSIÓN DE DEMANDA DEPENDIENTE (Capa 2 - FÓRMULA / Plan Maestro)
 Responsabilidad Única: Explotar el Plan Maestro de Producción sobre la Matriz BOM y calcular consumo diario y variabilidad.
 Contrato:
   - explotar_bom(estado) -> dict: {
