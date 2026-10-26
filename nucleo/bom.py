@@ -1,5 +1,5 @@
 """
-Módulo del Núcleo: BOM / EXPLOSIÓN DE DEMANDA (Capa 2 - FÓRMULA / Queja 4)
+Módulo del Núcleo: BOM / EXPLOSIÓN DE DEMANDA DEPENDIENTE (Capa 2 - FÓRMULA / Plan Maestro)
 Responsabilidad Única: Explotar el Plan Maestro de Producción sobre la Matriz BOM y calcular consumo diario y variabilidad.
 Contrato:
   - explotar_bom(estado) -> dict: {
@@ -18,9 +18,15 @@ def explotar_bom(estado):
     Anualizado a 12 meses (factor 12.0 / 21.0).
     Calcula consumo diario y variabilidad diaria (sigma_diario).
     """
-    plan = estado['plan_produccion']
-    bom = estado['bom']
-    mm = estado['maestro_materiales']
+    plan = estado.get('plan_produccion', pd.DataFrame()) if estado else pd.DataFrame()
+    bom = estado.get('bom', pd.DataFrame()) if estado else pd.DataFrame()
+    mm = estado.get('maestro_materiales', pd.DataFrame()) if estado else pd.DataFrame()
+    
+    if mm.empty or plan.empty or bom.empty:
+        return {
+            'df_demanda_insumos': pd.DataFrame(),
+            'total_insumos_activos': 0
+        }
     
     plan_bom = plan.merge(bom, on='producto', how='inner')
     plan_bom['consumo_planeado'] = plan_bom['cantidad_planeada'] * plan_bom['cantidad_por_unidad']

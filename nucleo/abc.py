@@ -25,7 +25,8 @@ def clasificar_abc(df_demanda):
     
     df['valor_acumulado'] = df['valor_consumo_anual'].cumsum()
     df['pct_valor_acumulado'] = (df['valor_acumulado'] / valor_total) * 100 if valor_total > 0 else 0
-    df['pct_sku_acumulado'] = ((df.index + 1) / len(df)) * 100
+    len_df = len(df)
+    df['pct_sku_acumulado'] = ((df.index + 1) / len_df) * 100 if len_df > 0 else 0
     
     def asignar(pct):
         if pct <= 80.0:
@@ -35,26 +36,26 @@ def clasificar_abc(df_demanda):
         else:
             return 'C'
             
-    df['clasificacion_abc'] = df['pct_valor_acumulado'].apply(asignar)
+    df['clasificacion_abc'] = df['pct_valor_acumulado'].apply(asignar) if len_df > 0 else pd.Series(dtype=str)
     
     resumen = {
         'A': {
-            'skus': int((df['clasificacion_abc'] == 'A').sum()),
-            'pct_skus': float((df['clasificacion_abc'] == 'A').mean() * 100),
-            'valor_cop': float(df[df['clasificacion_abc'] == 'A']['valor_consumo_anual'].sum()),
-            'pct_valor': float((df[df['clasificacion_abc'] == 'A']['valor_consumo_anual'].sum() / valor_total * 100) if valor_total > 0 else 0)
+            'skus': int((df['clasificacion_abc'] == 'A').sum()) if len_df > 0 else 0,
+            'pct_skus': float((df['clasificacion_abc'] == 'A').mean() * 100) if len_df > 0 else 0.0,
+            'valor_cop': float(df[df['clasificacion_abc'] == 'A']['valor_consumo_anual'].sum()) if len_df > 0 else 0.0,
+            'pct_valor': float((df[df['clasificacion_abc'] == 'A']['valor_consumo_anual'].sum() / valor_total * 100) if valor_total > 0 else 0.0)
         },
         'B': {
-            'skus': int((df['clasificacion_abc'] == 'B').sum()),
-            'pct_skus': float((df['clasificacion_abc'] == 'B').mean() * 100),
-            'valor_cop': float(df[df['clasificacion_abc'] == 'B']['valor_consumo_anual'].sum()),
-            'pct_valor': float((df[df['clasificacion_abc'] == 'B']['valor_consumo_anual'].sum() / valor_total * 100) if valor_total > 0 else 0)
+            'skus': int((df['clasificacion_abc'] == 'B').sum()) if len_df > 0 else 0,
+            'pct_skus': float((df['clasificacion_abc'] == 'B').mean() * 100) if len_df > 0 else 0.0,
+            'valor_cop': float(df[df['clasificacion_abc'] == 'B']['valor_consumo_anual'].sum()) if len_df > 0 else 0.0,
+            'pct_valor': float((df[df['clasificacion_abc'] == 'B']['valor_consumo_anual'].sum() / valor_total * 100) if valor_total > 0 else 0.0)
         },
         'C': {
-            'skus': int((df['clasificacion_abc'] == 'C').sum()),
-            'pct_skus': float((df['clasificacion_abc'] == 'C').mean() * 100),
-            'valor_cop': float(df[df['clasificacion_abc'] == 'C']['valor_consumo_anual'].sum()),
-            'pct_valor': float((df[df['clasificacion_abc'] == 'C']['valor_consumo_anual'].sum() / valor_total * 100) if valor_total > 0 else 0)
+            'skus': int((df['clasificacion_abc'] == 'C').sum()) if len_df > 0 else 0,
+            'pct_skus': float((df['clasificacion_abc'] == 'C').mean() * 100) if len_df > 0 else 0.0,
+            'valor_cop': float(df[df['clasificacion_abc'] == 'C']['valor_consumo_anual'].sum()) if len_df > 0 else 0.0,
+            'pct_valor': float((df[df['clasificacion_abc'] == 'C']['valor_consumo_anual'].sum() / valor_total * 100) if valor_total > 0 else 0.0)
         }
     }
     
