@@ -32,123 +32,601 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
     <title>E2 SAS — Sistema Integral de Abastecimiento y Control Operativo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-canvas: #090d16;
-            --bg-surface: #111827;
-            --bg-surface-elevated: #162032;
-            --border-subtle: #1f293d;
-            --border-focus: #3b82f6;
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --primary-light: rgba(37, 99, 235, 0.12);
-            --success: #10b981;
-            --success-surface: rgba(16, 185, 129, 0.1);
-            --success-border: rgba(16, 185, 129, 0.3);
-            --warning: #f59e0b;
-            --warning-surface: rgba(245, 158, 11, 0.1);
-            --warning-border: rgba(245, 158, 11, 0.3);
-            --danger: #ef4444;
-            --danger-surface: rgba(239, 68, 68, 0.1);
-            --danger-border: rgba(239, 68, 68, 0.3);
-            --text-main: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            --radius-md: 8px;
-            --radius-lg: 12px;
+            /* Paleta Corporativa Industrial Slate / Navy */
+            --bg-canvas: #0F172A;              /* Slate 900 */
+            --bg-surface: #1E293B;             /* Slate 800 */
+            --bg-surface-elevated: #243247;    /* Slate 750 */
+            --bg-surface-hover: #29384D;
+            --bg-input: #131D2E;
+
+            /* Estructura y Líneas Finas (1px solid) */
+            --border-fine: #334155;            /* Slate 700 */
+            --border-subtle: #243247;
+            --border-hover: #475569;           /* Gris Acero */
+            --border-focus: #3B82F6;
+
+            /* Color Primario / Acento Corporativo */
+            --primary: #2563EB;                /* Azul Corporativo */
+            --primary-hover: #1D4ED8;
+            --primary-subtle: rgba(37, 99, 235, 0.12);
+            --primary-border: rgba(37, 99, 235, 0.35);
+
+            /* Colores de Estado Industrial */
+            --success: #10B981;                /* Verde Esmeralda (Éxito / Stock OK) */
+            --success-surface: rgba(16, 185, 129, 0.08);
+            --success-border: rgba(16, 185, 129, 0.35);
+            --success-text: #34D399;
+
+            --warning: #F59E0B;                /* Ámbar / Naranja (Alerta ROP / Supervisión) */
+            --warning-surface: rgba(245, 158, 11, 0.08);
+            --warning-border: rgba(245, 158, 11, 0.35);
+            --warning-text: #FBBF24;
+
+            --danger: #EF4444;                 /* Rojo Carmesí (Riesgo Quiebre / Rechazo) */
+            --danger-surface: rgba(239, 68, 68, 0.08);
+            --danger-border: rgba(239, 68, 68, 0.35);
+            --danger-text: #F87171;
+
+            /* Jerarquía Tipográfica */
+            --text-main: #F8FAFC;              /* Slate 50 */
+            --text-secondary: #94A3B8;         /* Slate 400 */
+            --text-muted: #64748B;             /* Slate 500 */
+            --text-steel: #475569;             /* Gris Acero */
+
+            /* Geometría SaaS Enterprise (Prohibido rounded-3xl) */
+            --radius-xs: 4px;
+            --radius-sm: 5px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-        body { background-color: var(--bg-canvas); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
 
-        /* Navegación y Encabezado */
-        header { background-color: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); padding: 1rem 2rem; position: sticky; top: 0; z-index: 100; }
-        .header-content { max-width: 1380px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-        .brand-block { display: flex; align-items: center; gap: 1rem; }
-        .brand-logo { background: var(--primary); color: #fff; font-weight: 700; font-size: 1rem; padding: 0.4rem 0.75rem; border-radius: var(--radius-md); letter-spacing: 0.5px; }
-        .brand-titles h1 { font-size: 1.15rem; font-weight: 600; color: var(--text-main); }
-        .brand-titles p { font-size: 0.8rem; color: var(--text-secondary); }
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.5;
+        }
 
-        .nav-tabs { display: flex; gap: 0.5rem; background: var(--bg-canvas); padding: 0.3rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); }
-        .tab-btn { background: transparent; border: none; color: var(--text-secondary); padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem; }
-        .tab-btn:hover { color: var(--text-main); }
-        .tab-btn.active { background: var(--bg-surface-elevated); color: #fff; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); }
+        /* Encabezado Corporativo */
+        header {
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border-fine);
+            padding: 0.85rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-block {
+            display: flex;
+            align-items: center;
+            gap: 1.15rem;
+        }
+
+        .brand-logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0F172A;
+            border: 1px solid var(--border-fine);
+            color: #38BDF8;
+            font-weight: 700;
+            font-size: 0.95rem;
+            padding: 0.45rem 0.85rem;
+            border-radius: var(--radius-sm);
+            letter-spacing: 0.06em;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .brand-titles h1 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-main);
+            letter-spacing: -0.01em;
+        }
+
+        .brand-titles p {
+            font-size: 0.775rem;
+            color: var(--text-secondary);
+        }
+
+        .system-status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--success-text);
+            background: var(--success-surface);
+            border: 1px solid var(--success-border);
+            padding: 0.25rem 0.65rem;
+            border-radius: var(--radius-xs);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            background-color: var(--success);
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* Navegación por Pestañas */
+        .nav-tabs {
+            display: flex;
+            gap: 0.35rem;
+            background: var(--bg-canvas);
+            padding: 0.25rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-fine);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            padding: 0.45rem 0.95rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.825rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-btn.active {
+            background: var(--bg-surface);
+            color: #FFFFFF;
+            font-weight: 600;
+            border-color: var(--border-fine);
+            box-shadow: var(--shadow-sm);
+        }
 
         /* Contenedor Principal */
-        main { max-width: 1380px; width: 100%; margin: 1.5rem auto; padding: 0 2rem; flex: 1; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        main {
+            max-width: 1400px;
+            width: 100%;
+            margin: 1.5rem auto;
+            padding: 0 2rem;
+            flex: 1;
+        }
 
-        /* Tarjetas y Paneles */
-        .card { background-color: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.5rem; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-subtle); }
-        .card-title { font-size: 1.05rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; }
-        .card-subtitle { font-size: 0.825rem; color: var(--text-secondary); margin-top: 0.2rem; }
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Paneles y Tarjetas (SaaS Enterprise) */
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-fine);
+            border-radius: var(--radius-md);
+            padding: 1.35rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.85rem;
+            border-bottom: 1px solid var(--border-fine);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            letter-spacing: -0.01em;
+        }
+
+        .card-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
 
         /* Grid de KPIs */
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .kpi-card { background-color: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 1.25rem; }
-        .kpi-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 0.5rem; }
-        .kpi-value { font-size: 1.85rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text-main); }
-        .kpi-footer { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem; display: flex; align-items: center; gap: 0.4rem; }
-        .kpi-badge { padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; font-size: 0.7rem; }
-        .badge-success { background: var(--success-surface); color: var(--success); border: 1px solid var(--success-border); }
-        .badge-warning { background: var(--warning-surface); color: var(--warning); border: 1px solid var(--warning-border); }
-        .badge-danger { background: var(--danger-surface); color: var(--danger); border: 1px solid var(--danger-border); }
-        .badge-neutral { background: var(--primary-light); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.25); }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .kpi-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-fine);
+            border-radius: var(--radius-md);
+            padding: 1.15rem 1.35rem;
+            box-shadow: var(--shadow-sm);
+            transition: border-color 0.15s ease;
+        }
+
+        .kpi-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .kpi-label {
+            font-size: 0.725rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .kpi-value {
+            font-size: 1.85rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+            line-height: 1.15;
+        }
+
+        .kpi-footer {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.65rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Etiquetas y Badges */
+        .kpi-badge {
+            padding: 0.15rem 0.5rem;
+            border-radius: var(--radius-xs);
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .badge-success {
+            background: var(--success-surface);
+            color: var(--success-text);
+            border: 1px solid var(--success-border);
+        }
+
+        .badge-warning {
+            background: var(--warning-surface);
+            color: var(--warning-text);
+            border: 1px solid var(--warning-border);
+        }
+
+        .badge-danger {
+            background: var(--danger-surface);
+            color: var(--danger-text);
+            border: 1px solid var(--danger-border);
+        }
+
+        .badge-neutral {
+            background: var(--primary-subtle);
+            color: #60A5FA;
+            border: 1px solid var(--primary-border);
+        }
 
         /* Banners Semánticos */
-        .alert-banner { border-radius: var(--radius-md); padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 0.85rem; }
-        .alert-warning { background-color: var(--warning-surface); border: 1px solid var(--warning-border); color: #fef3c7; }
-        .alert-success { background-color: var(--success-surface); border: 1px solid var(--success-border); color: #d1fae5; }
-        .alert-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.2rem; }
-        .alert-body { font-size: 0.85rem; color: #cbd5e1; line-height: 1.45; }
+        .alert-banner {
+            border-radius: var(--radius-md);
+            padding: 1.1rem 1.35rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.95rem;
+            box-shadow: var(--shadow-sm);
+        }
 
-        /* Tablas */
-        .table-responsive { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-surface); }
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
-        th { background-color: var(--bg-surface-elevated); color: var(--text-secondary); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }
-        td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; color: var(--text-main); }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background-color: rgba(255, 255, 255, 0.015); }
-        .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+        .alert-warning {
+            background-color: var(--warning-surface);
+            border: 1px solid var(--warning-border);
+            color: #FEF3C7;
+        }
 
-        /* Botones */
-        .btn { padding: 0.55rem 1.1rem; border-radius: var(--radius-md); font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.15s ease-in-out; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid transparent; }
-        .btn-primary { background-color: var(--primary); color: #fff; }
-        .btn-primary:hover { background-color: var(--primary-hover); }
-        .btn-outline { background-color: transparent; border-color: var(--border-subtle); color: var(--text-secondary); }
-        .btn-outline:hover { color: var(--text-main); border-color: var(--text-secondary); background: rgba(255, 255, 255, 0.02); }
-        .btn-success { background-color: var(--success); color: #fff; }
-        .btn-success:hover { background-color: #059669; }
-        .btn-danger-outline { background: transparent; border: 1px solid var(--danger-border); color: #f87171; }
-        .btn-danger-outline:hover { background: var(--danger-surface); }
-        .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 6px; }
+        .alert-success {
+            background-color: var(--success-surface);
+            border: 1px solid var(--success-border);
+            color: #D1FAE5;
+        }
 
-        /* Formularios y Carga */
-        .form-group { margin-bottom: 1rem; }
-        .form-label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.35rem; }
-        .form-select, .form-input { width: 100%; max-width: 320px; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); color: var(--text-main); padding: 0.5rem 0.75rem; border-radius: var(--radius-md); font-size: 0.85rem; }
-        .form-select:focus, .form-input:focus { outline: none; border-color: var(--border-focus); }
-        
-        .dropzone { border: 2px dashed var(--border-subtle); border-radius: var(--radius-lg); padding: 2rem; text-align: center; background: rgba(255, 255, 255, 0.01); transition: all 0.2s; cursor: pointer; }
-        .dropzone:hover { border-color: var(--primary); background: var(--primary-light); }
-        .dropzone-icon { width: 40px; height: 40px; margin: 0 auto 0.75rem; color: var(--text-secondary); }
+        .alert-title {
+            font-weight: 600;
+            font-size: 0.925rem;
+            margin-bottom: 0.25rem;
+            letter-spacing: -0.01em;
+        }
+
+        .alert-body {
+            font-size: 0.825rem;
+            color: #CBD5E1;
+            line-height: 1.45;
+        }
+
+        /* Tablas Corporativas */
+        .table-responsive {
+            overflow-x: auto;
+            border: 1px solid var(--border-fine);
+            border-radius: var(--radius-md);
+            background: var(--bg-surface);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.825rem;
+        }
+
+        th {
+            background-color: var(--bg-surface-elevated);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border-fine);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border-fine);
+            vertical-align: middle;
+            color: var(--text-main);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        /* Botones Profesionales */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.825rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid transparent;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #FFFFFF;
+            border-color: #3B82F6;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border-color: var(--border-fine);
+            color: var(--text-secondary);
+        }
+
+        .btn-outline:hover {
+            color: var(--text-main);
+            border-color: var(--border-hover);
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        .btn-success {
+            background-color: #059669;
+            color: #FFFFFF;
+            border-color: #10B981;
+        }
+
+        .btn-success:hover {
+            background-color: #047857;
+        }
+
+        .btn-danger-outline {
+            background-color: transparent;
+            border: 1px solid var(--danger-border);
+            color: var(--danger-text);
+        }
+
+        .btn-danger-outline:hover {
+            background-color: var(--danger-surface);
+            border-color: var(--danger);
+        }
+
+        .btn-sm {
+            padding: 0.35rem 0.7rem;
+            font-size: 0.75rem;
+            border-radius: var(--radius-xs);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Formularios y Entradas */
+        .form-group {
+            margin-bottom: 1.15rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.775rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .form-select, .form-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-fine);
+            color: var(--text-main);
+            padding: 0.55rem 0.85rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.825rem;
+            transition: border-color 0.15s ease;
+        }
+
+        .form-select:focus, .form-input:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .dropzone {
+            border: 1px dashed var(--border-hover);
+            border-radius: var(--radius-md);
+            padding: 2.25rem 1.5rem;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.5);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .dropzone:hover {
+            border-color: var(--primary);
+            background: var(--primary-subtle);
+        }
+
+        .dropzone-icon {
+            width: 36px;
+            height: 36px;
+            margin: 0 auto 0.75rem;
+            color: var(--text-secondary);
+        }
 
         /* Barra de Filtros */
-        .filter-bar { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
-        .search-input { min-width: 250px; background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-main); padding: 0.5rem 0.85rem; border-radius: var(--radius-md); font-size: 0.85rem; }
+        .filter-bar {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
 
-        /* Justificación Ejecutiva */
-        .justification-card { background: rgba(0, 0, 0, 0.2); border-left: 3px solid var(--primary); padding: 0.65rem 0.85rem; border-radius: 4px; font-size: 0.825rem; line-height: 1.45; color: #cbd5e1; margin-top: 0.35rem; }
+        .search-input {
+            min-width: 280px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-fine);
+            color: var(--text-main);
+            padding: 0.5rem 0.85rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.825rem;
+        }
 
-        /* Notificación Toast */
-        #toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); color: #fff; padding: 0.85rem 1.25rem; border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-size: 0.85rem; display: none; z-index: 9999; }
-        
-        /* Spinner */
-        .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .search-input:focus {
+            outline: none;
+            border-color: var(--border-focus);
+        }
+
+        /* Tarjeta de Justificación Analítica */
+        .justification-card {
+            background: rgba(15, 23, 42, 0.6);
+            border-left: 3px solid var(--primary);
+            padding: 0.65rem 0.85rem;
+            border-radius: var(--radius-xs);
+            font-size: 0.8rem;
+            line-height: 1.45;
+            color: #CBD5E1;
+            margin-top: 0.35rem;
+        }
+
+        /* Notificación Toast Flotante */
+        #toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-fine);
+            color: #FFFFFF;
+            padding: 0.85rem 1.35rem;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-md);
+            font-size: 0.825rem;
+            font-weight: 500;
+            display: none;
+            z-index: 9999;
+            max-width: 420px;
+        }
+
+        /* Indicador de Carga / Spinner */
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #FFFFFF;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -156,30 +634,36 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
     <header>
         <div class="header-content">
             <div class="brand-block">
-                <div class="brand-logo">E2 SAS</div>
+                <div class="brand-logo-container">E2 SAS</div>
                 <div class="brand-titles">
                     <h1>Mobiliario Metálico para Oficina — Control de Abastecimiento</h1>
                     <p>Producción 4.0 · Sistema Asistido de Reposición e Ingesta Idempotente</p>
                 </div>
             </div>
-            <nav class="nav-tabs">
-                <button class="tab-btn active" onclick="cambiarPestana('tab-control')">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-                    Tablero de Control
-                </button>
-                <button class="tab-btn" onclick="cambiarPestana('tab-demanda')">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-                    Demanda y Parámetros
-                </button>
-                <button class="tab-btn" onclick="cambiarPestana('tab-ingesta')">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    Ingesta de Datos (5 Pasos)
-                </button>
-                <button class="tab-btn" onclick="cambiarPestana('tab-telemetria')">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                    Instrumentación y Auditoría
-                </button>
-            </nav>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="system-status-indicator">
+                    <span class="status-dot"></span>
+                    <span>Base Relacional Activa</span>
+                </div>
+                <nav class="nav-tabs">
+                    <button class="tab-btn active" onclick="cambiarPestana('tab-control')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                        <span>Tablero de Control</span>
+                    </button>
+                    <button class="tab-btn" onclick="cambiarPestana('tab-demanda')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                        <span>Demanda y Parámetros</span>
+                    </button>
+                    <button class="tab-btn" onclick="cambiarPestana('tab-ingesta')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <span>Ingesta de Datos</span>
+                    </button>
+                    <button class="tab-btn" onclick="cambiarPestana('tab-telemetria')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        <span>Instrumentación y Auditoría</span>
+                    </button>
+                </nav>
+            </div>
         </div>
     </header>
 
@@ -190,8 +674,8 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
         <div id="tab-control" class="tab-content active">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                 <div>
-                    <h2 style="font-size: 1.25rem; font-weight: 600;">Estado General de la Operación</h2>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary);">Supervisión de inventario físico, reconciliación contable y generación de órdenes de compra.</p>
+                    <h2 style="font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em;">Estado General de Abastecimiento</h2>
+                    <p style="font-size: 0.825rem; color: var(--text-secondary);">Supervisión de inventario físico, reconciliación contable y aprobación ejecutiva de órdenes de compra.</p>
                 </div>
                 <div>
                     <button id="btnEjecutarOrquestacion" class="btn btn-primary" onclick="ejecutarAnalisisIntegral()">
@@ -204,34 +688,34 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             <!-- Grid de Indicadores Clave -->
             <div class="kpi-grid">
                 <div class="kpi-card">
-                    <div class="kpi-label">Exactitud de Inventario (ERI)</div>
+                    <div class="kpi-label">Exactitud de Registro (ERI)</div>
                     <div id="kpiEri" class="kpi-value">-- %</div>
                     <div class="kpi-footer">
                         <span id="badgeEri" class="kpi-badge badge-neutral">Tolerancia ±5%</span>
-                        <span>Saldo Kardex vs Físico</span>
+                        <span>Saldo Kardex vs. Conteo Físico</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-label">Materiales en Riesgo de Quiebre</div>
-                    <div id="kpiQuiebres" class="kpi-value" style="color: #f87171;">--</div>
+                    <div id="kpiQuiebres" class="kpi-value" style="color: var(--danger-text);">--</div>
                     <div class="kpi-footer">
                         <span class="kpi-badge badge-danger">Stock Real ≤ ROP</span>
-                        <span>Requiere reposición</span>
+                        <span>Requiere reposición inmediata</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-label">Presupuesto Sugerido (EOQ)</div>
-                    <div id="kpiInversion" class="kpi-value" style="font-size: 1.55rem; color: #60a5fa;">$ --</div>
+                    <div id="kpiInversion" class="kpi-value" style="font-size: 1.55rem; color: #60A5FA;">$ --</div>
                     <div class="kpi-footer">
-                        <span class="kpi-badge badge-neutral">Costo de Emisión $80k</span>
+                        <span class="kpi-badge badge-neutral">Costo Emisión $80.000 COP</span>
                         <span>Lote Económico</span>
                     </div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">Discrepancias de Bodega</div>
-                    <div id="kpiDiscrepancias" class="kpi-value" style="color: #fbbf24;">--</div>
+                    <div class="kpi-label">Discrepancias Físicas Auditadas</div>
+                    <div id="kpiDiscrepancias" class="kpi-value" style="color: var(--warning-text);">--</div>
                     <div class="kpi-footer">
-                        <span class="kpi-badge badge-warning">Desfases Auditados</span>
+                        <span class="kpi-badge badge-warning">Desfases Detectados</span>
                         <span>Fantasmas y Muelle</span>
                     </div>
                 </div>
@@ -241,9 +725,9 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             <div id="bannerSupervision" class="alert-banner alert-warning">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <div>
-                    <div id="supervisionTitulo" class="alert-title">Supervisión Requerida — Criterio de Parada Activo</div>
+                    <div id="supervisionTitulo" class="alert-title">Supervisión Humana Obligatoria — Criterio de Parada Activo</div>
                     <div id="supervisionMensaje" class="alert-body">
-                        El sistema ha detectado necesidades críticas de abastecimiento. Por política corporativa, ninguna orden de compra compromete recursos financieros sin la aprobación explícita del planeador.
+                        El sistema ha detectado necesidades críticas de abastecimiento. Por política corporativa de E2 SAS, ninguna orden de compra compromete recursos financieros sin la aprobación explícita del Planeador de Abastecimiento.
                     </div>
                 </div>
             </div>
@@ -252,8 +736,8 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Recomendaciones de Abastecimiento Emitidas por el Asistente</div>
-                        <div class="card-subtitle">Analice la justificación analítica y confirme o desestime cada requerimiento para asentar en la base de datos.</div>
+                        <div class="card-title">Recomendaciones de Reposición Emitidas por el Asistente</div>
+                        <div class="card-subtitle">Evalúe la justificación analítica y determine la autorización o desestimación de cada orden para su registro en la base de datos.</div>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -261,12 +745,12 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                         <thead>
                             <tr>
                                 <th>Insumo / Referencia</th>
-                                <th>Clasificación</th>
+                                <th>Clasificación ABC</th>
                                 <th>Stock Físico</th>
-                                <th>Punto Reorden (ROP)</th>
+                                <th>Punto de Reorden (ROP)</th>
                                 <th>Cantidad Sugerida (EOQ)</th>
                                 <th style="width: 44%;">Justificación Analítica Cuantitativa</th>
-                                <th>Acción Requerida</th>
+                                <th>Decisión Requerida</th>
                             </tr>
                         </thead>
                         <tbody id="tablaPropuestasBody">
@@ -289,24 +773,24 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 <div class="card-header">
                     <div>
                         <div class="card-title">Distribución Pareto ABC de Materiales (Demanda por Valor D × Cu)</div>
-                        <div class="card-subtitle">Segmentación financiera acumulada según la metodología 80-15-5.</div>
+                        <div class="card-subtitle">Segmentación financiera acumulada según la regla corporativa 80-15-5 para focalización del control operativo.</div>
                     </div>
                 </div>
                 <div class="kpi-grid" id="paretoGrid">
                     <div class="kpi-card">
-                        <div class="kpi-label">Clase A (Alta Inversión)</div>
-                        <div id="paretoA_skus" class="kpi-value" style="color: #f87171;">-- SKUs</div>
-                        <div id="paretoA_valor" class="kpi-footer">$ -- COP (80% valor)</div>
+                        <div class="kpi-label">Clase A (Inversión Alta)</div>
+                        <div id="paretoA_skus" class="kpi-value" style="color: var(--danger-text);">-- SKUs</div>
+                        <div id="paretoA_valor" class="kpi-footer">$ -- COP (80% del valor total)</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Clase B (Inversión Media)</div>
-                        <div id="paretoB_skus" class="kpi-value" style="color: #fbbf24;">-- SKUs</div>
-                        <div id="paretoB_valor" class="kpi-footer">$ -- COP (15% valor)</div>
+                        <div id="paretoB_skus" class="kpi-value" style="color: var(--warning-text);">-- SKUs</div>
+                        <div id="paretoB_valor" class="kpi-footer">$ -- COP (15% del valor total)</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Clase C (Baja Inversión)</div>
-                        <div id="paretoC_skus" class="kpi-value" style="color: #34d399;">-- SKUs</div>
-                        <div id="paretoC_valor" class="kpi-footer">$ -- COP (5% valor)</div>
+                        <div class="kpi-label">Clase C (Inversión Baja)</div>
+                        <div id="paretoC_skus" class="kpi-value" style="color: var(--success-text);">-- SKUs</div>
+                        <div id="paretoC_valor" class="kpi-footer">$ -- COP (5% del valor total)</div>
                     </div>
                 </div>
             </div>
@@ -314,13 +798,13 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Matriz Detallada de Reposición y Explosión BOM</div>
-                        <div class="card-subtitle">Cálculos matemáticos de consumo diario (d), variabilidad (σd), stock de seguridad (SS) y punto de reorden (ROP).</div>
+                        <div class="card-title">Matriz Analítica de Reposición y Explosión de Materiales (BOM)</div>
+                        <div class="card-subtitle">Cálculos matemáticos de consumo diario (d), desviación estándar (σd), stock de seguridad (SS) y punto de reorden (ROP).</div>
                     </div>
                     <div class="filter-bar">
-                        <input type="text" id="filtroSkuDemanda" class="search-input" placeholder="Buscar material o SKU..." oninput="filtrarTablaDemanda()">
-                        <select id="filtroClaseAbc" class="form-select" style="max-width: 140px;" onchange="filtrarTablaDemanda()">
-                            <option value="">Todas las clases</option>
+                        <input type="text" id="filtroSkuDemanda" class="search-input" placeholder="Buscar por Número de SKU, descripción o familia..." oninput="filtrarTablaDemanda()">
+                        <select id="filtroClaseAbc" class="form-select" style="max-width: 160px;" onchange="filtrarTablaDemanda()">
+                            <option value="">Todas las Clases</option>
                             <option value="A">Clase A</option>
                             <option value="B">Clase B</option>
                             <option value="C">Clase C</option>
@@ -331,22 +815,22 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                     <table>
                         <thead>
                             <tr>
-                                <th>SKU</th>
-                                <th>Descripción</th>
+                                <th>Número de SKU</th>
+                                <th>Descripción del Material</th>
                                 <th>Familia</th>
-                                <th>Clase</th>
+                                <th>Clase ABC</th>
                                 <th>Demanda Anual (D)</th>
                                 <th>Consumo Diario (d)</th>
                                 <th>Desviación (σd)</th>
-                                <th>Lead Time (LT)</th>
-                                <th>Stock Seg. (SS)</th>
-                                <th>Punto Reorden (ROP)</th>
-                                <th>Lote Econ. (EOQ)</th>
-                                <th>Stock Actual</th>
+                                <th>Tiempo de Entrega (LT)</th>
+                                <th>Stock de Seguridad (SS)</th>
+                                <th>Punto de Reorden (ROP)</th>
+                                <th>Lote Económico (EOQ)</th>
+                                <th>Stock Físico Actual</th>
                             </tr>
                         </thead>
                         <tbody id="tablaDemandaBody">
-                            <tr><td colspan="12" style="text-align: center; padding: 2rem; color: var(--text-muted);">Cargando matriz analítica...</td></tr>
+                            <tr><td colspan="12" style="text-align: center; padding: 2rem; color: var(--text-muted);">Cargando matriz analítica de abastecimiento...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -360,8 +844,8 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Flujo de Ingesta y Validación en Cinco Pasos</div>
-                        <div class="card-subtitle">Procesamiento determinístico, validación estructural, normalización y escritura idempotente en base de datos.</div>
+                        <div class="card-title">Flujo de Ingesta y Validación de Archivos CSV en Cinco Pasos</div>
+                        <div class="card-subtitle">Procesamiento determinístico, validación estructural de esquema, normalización y escritura con idempotencia garantizada.</div>
                     </div>
                 </div>
 
@@ -379,30 +863,30 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
 
                         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
                             <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem;">Haga clic o arrastre el archivo CSV aquí</div>
-                            <div style="font-size: 0.8rem; color: var(--text-secondary);">Archivos delimitados por coma o punto y coma (.csv)</div>
+                            <div style="font-weight: 600; font-size: 0.925rem; margin-bottom: 0.25rem;">Haga clic o arrastre el archivo CSV corporativo aquí</div>
+                            <div style="font-size: 0.775rem; color: var(--text-secondary);">Archivos delimitados por coma o punto y coma (.csv) · Detección automática de codificación</div>
                             <input type="file" id="fileInput" accept=".csv" style="display: none;" onchange="manejarSeleccionArchivo(this.files[0])">
                         </div>
 
-                        <div id="archivoMeta" style="margin-top: 0.75rem; font-size: 0.825rem; color: var(--text-secondary); display: none;">
-                            Archivo: <strong id="lblNombreArchivo" style="color: #fff;">--</strong> (<span id="lblTamanoArchivo">-- KB</span>)
+                        <div id="archivoMeta" style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); display: none;">
+                            Archivo Seleccionado: <strong id="lblNombreArchivo" style="color: #FFFFFF;">--</strong> (<span id="lblTamanoArchivo">-- KB</span>)
                         </div>
 
                         <div style="margin-top: 1rem; display: flex; gap: 0.75rem;">
                             <button id="btnPrevisualizar" class="btn btn-outline" onclick="iniciarPrevisualizacion()" disabled>
-                                <span>Paso 1 y 2: Validar y Previsualizar</span>
+                                <span>Paso 1 y 2: Validar Estructura y Previsualizar</span>
                             </button>
                             <button id="btnConfirmarCarga" class="btn btn-primary" onclick="confirmarIngesta()" disabled>
-                                <span>Paso 3, 4 y 5: Normalizar y Asentar</span>
+                                <span>Paso 3, 4 y 5: Normalizar y Asentar en Base de Datos</span>
                             </button>
                         </div>
                     </div>
 
                     <div>
                         <div class="card" style="background: var(--bg-surface-elevated); margin-bottom: 0; height: 100%;">
-                            <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">Diagnóstico Estructural de Entrada</div>
-                            <div id="diagnosticoEstructural" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
-                                Seleccione un archivo CSV para inspeccionar delimitadores, codificación y verificar la presencia de las columnas requeridas según el modelo relacional.
+                            <div style="font-weight: 600; font-size: 0.925rem; margin-bottom: 0.5rem;">Diagnóstico Estructural del Archivo de Entrada</div>
+                            <div id="diagnosticoEstructural" style="font-size: 0.825rem; color: var(--text-secondary); line-height: 1.5;">
+                                Seleccione un archivo CSV para inspeccionar delimitadores, juego de caracteres y verificar la presencia de las columnas obligatorias según el modelo relacional.
                             </div>
                         </div>
                     </div>
@@ -412,38 +896,38 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 <div id="panelRendicionCuentas" style="display: none; margin-top: 1.5rem;">
                     <div class="kpi-grid">
                         <div class="kpi-card">
-                            <div class="kpi-label">Filas Leídas del Archivo</div>
+                            <div class="kpi-label">Registros Leídos del Archivo</div>
                             <div id="rcLeidas" class="kpi-value">0</div>
                             <div class="kpi-footer">Total de registros evaluados</div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">Filas Insertadas en Base</div>
-                            <div id="rcInsertadas" class="kpi-value" style="color: #34d399;">0</div>
-                            <div class="kpi-footer">Transacciones nuevas agregadas</div>
+                            <div class="kpi-label">Registros Insertados en Base</div>
+                            <div id="rcInsertadas" class="kpi-value" style="color: var(--success-text);">0</div>
+                            <div class="kpi-footer">Nuevas transacciones asentadas</div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">Omitidas por Idempotencia</div>
-                            <div id="rcOmitidas" class="kpi-value" style="color: #60a5fa;">0</div>
-                            <div class="kpi-footer">Duplicados prevenidos</div>
+                            <div class="kpi-label">Omitidos por Idempotencia</div>
+                            <div id="rcOmitidas" class="kpi-value" style="color: #60A5FA;">0</div>
+                            <div class="kpi-footer">Duplicados prevenidos sin alteración</div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">Filas Rechazadas</div>
-                            <div id="rcRechazadas" class="kpi-value" style="color: #f87171;">0</div>
-                            <div class="kpi-footer">Fechas o datos corruptos</div>
+                            <div class="kpi-label">Registros Rechazados</div>
+                            <div id="rcRechazadas" class="kpi-value" style="color: var(--danger-text);">0</div>
+                            <div class="kpi-footer">Inconsistencias o datos corruptos</div>
                         </div>
                     </div>
 
                     <!-- Trazabilidad Fila a Fila -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin: 1.25rem 0 0.75rem 0;">
-                        <div style="font-weight: 600; font-size: 0.95rem;">Auditoría y Trazabilidad Fila a Fila</div>
+                        <div style="font-weight: 600; font-size: 0.925rem;">Auditoría y Trazabilidad Fila a Fila</div>
                         <div class="filter-bar" style="margin-bottom: 0;">
-                            <select id="filtroEstadoFila" class="form-select" style="max-width: 180px;" onchange="filtrarTrazabilidad()">
-                                <option value="">Todos los estados</option>
+                            <select id="filtroEstadoFila" class="form-select" style="max-width: 190px;" onchange="filtrarTrazabilidad()">
+                                <option value="">Todos los Estados</option>
                                 <option value="INSERTADA">Insertadas</option>
-                                <option value="OMITIDA">Omitidas / Duplicadas</option>
+                                <option value="OMITIDA">Omitidas por Idempotencia</option>
                                 <option value="RECHAZADA">Rechazadas</option>
                             </select>
-                            <button class="btn btn-outline btn-sm" onclick="descargarInformeAuditoria()">Descargar Reporte CSV</button>
+                            <button class="btn btn-outline btn-sm" onclick="descargarInformeAuditoria()">Descargar Reporte CSV de Auditoría</button>
                         </div>
                     </div>
 
@@ -452,9 +936,9 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                             <thead>
                                 <tr>
                                     <th>Fila</th>
-                                    <th>Identificador</th>
-                                    <th>Estado Final</th>
-                                    <th>Motivo del Resultado</th>
+                                    <th>Identificador Único</th>
+                                    <th>Estado de Transacción</th>
+                                    <th>Causa del Resultado</th>
                                     <th>Detalle Pericial</th>
                                 </tr>
                             </thead>
@@ -473,12 +957,12 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Instrumentación del Sistema — "El Sistema se Mide Solo"</div>
-                        <div class="card-subtitle">Cinco dimensiones de telemetría operativa para control continuo y autodiagnóstico.</div>
+                        <div class="card-title">Instrumentación del Sistema — «El Sistema se Mide Solo»</div>
+                        <div class="card-subtitle">Cinco dimensiones cuantitativas de telemetría operativa para control continuo y autodiagnóstico del aplicativo.</div>
                     </div>
                     <button class="btn btn-outline btn-sm" onclick="cargarMetricasInstrumentacion()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                        Actualizar Métricas
+                        <span>Actualizar Métricas de Telemetría</span>
                     </button>
                 </div>
 
@@ -486,27 +970,27 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                     <div class="kpi-card">
                         <div class="kpi-label">1. Calidad del Dato de Entrada</div>
                         <div id="teleTasaRechazo" class="kpi-value">0.0 %</div>
-                        <div class="kpi-footer">Tasa de rechazo en cargas</div>
+                        <div class="kpi-footer">Tasa de rechazo en cargas de archivos</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">2. Trabajo Ahorrado</div>
-                        <div id="teleHorasAhorro" class="kpi-value" style="color: #60a5fa;">-- h</div>
+                        <div class="kpi-label">2. Ahorro de Trabajo Manual</div>
+                        <div id="teleHorasAhorro" class="kpi-value" style="color: #60A5FA;">-- h</div>
                         <div class="kpi-footer">Horas estimadas de planeación</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">3. Calibración de Paradas</div>
-                        <div id="teleTasaParadas" class="kpi-value" style="color: #fbbf24;">-- %</div>
-                        <div class="kpi-footer">Corridas con parada activa</div>
+                        <div id="teleTasaParadas" class="kpi-value" style="color: var(--warning-text);">-- %</div>
+                        <div class="kpi-footer">Frecuencia de corridas con parada activa</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">4. Tasa de Acierto Humano</div>
-                        <div id="teleAciertoHumano" class="kpi-value" style="color: #34d399;">-- %</div>
-                        <div class="kpi-footer">Órdenes autorizadas por planeador</div>
+                        <div class="kpi-label">4. Acierto en Decisiones</div>
+                        <div id="teleAciertoHumano" class="kpi-value" style="color: var(--success-text);">-- %</div>
+                        <div class="kpi-footer">Órdenes autorizadas por el planeador</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">5. Costo Computacional</div>
                         <div id="teleTiempoProm" class="kpi-value" style="font-size: 1.55rem;">-- ms</div>
-                        <div class="kpi-footer">Tiempo medio de ejecución</div>
+                        <div class="kpi-footer">Tiempo medio de respuesta</div>
                     </div>
                 </div>
             </div>
@@ -515,8 +999,8 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Bitácora Oficial de Corridas de Orquestación</div>
-                        <div class="card-subtitle">Registro transaccional de ejecuciones del sistema con fecha, duración y resultado.</div>
+                        <div class="card-title">Bitácora Oficial de Corridas del Sistema</div>
+                        <div class="card-subtitle">Registro transaccional inmutable de ejecuciones con fecha, duración, indicadores analíticos y resultado de supervisión.</div>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -524,17 +1008,17 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                         <thead>
                             <tr>
                                 <th>Fecha y Hora</th>
-                                <th>ID Corrida</th>
+                                <th>ID de Corrida</th>
                                 <th>Duración</th>
-                                <th>SKUs Evaluados</th>
+                                <th>SKUs Auditados</th>
                                 <th>ERI Global</th>
                                 <th>Quiebres</th>
-                                <th>Inversión COP</th>
+                                <th>Inversión Propuesta (COP)</th>
                                 <th>Estado de Parada</th>
                             </tr>
                         </thead>
                         <tbody id="tablaBitacoraCorridasBody">
-                            <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay registros históricos en la bitácora.</td></tr>
+                            <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay registros históricos en la bitácora de corridas.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -544,8 +1028,8 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             <div class="card">
                 <div class="card-header">
                     <div>
-                        <div class="card-title">Bitácora Oficial de Ingesta de Archivos</div>
-                        <div class="card-subtitle">Historial de archivos procesados, filas leídas, aceptadas y rechazadas.</div>
+                        <div class="card-title">Bitácora Oficial de Ingesta de Archivos CSV</div>
+                        <div class="card-subtitle">Historial de archivos procesados, balance de inserciones, registros omitidos por idempotencia y rechazos.</div>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -553,17 +1037,17 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                         <thead>
                             <tr>
                                 <th>Fecha y Hora</th>
-                                <th>Archivo</th>
+                                <th>Nombre del Archivo</th>
                                 <th>Tipo de Documento</th>
                                 <th>Leídas</th>
                                 <th>Insertadas</th>
                                 <th>Omitidas (Idempotencia)</th>
                                 <th>Rechazadas</th>
-                                <th>Detalle Pericial</th>
+                                <th>Diagnóstico Pericial</th>
                             </tr>
                         </thead>
                         <tbody id="tablaBitacoraCargasBody">
-                            <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay registros de ingesta aún.</td></tr>
+                            <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">No hay registros de ingesta registrados aún.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -584,7 +1068,6 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(idTab).classList.add('active');
             
-            // Marcar botón activo
             const idx = ['tab-control', 'tab-demanda', 'tab-ingesta', 'tab-telemetria'].indexOf(idTab);
             document.querySelectorAll('.tab-btn')[idx].classList.add('active');
 
@@ -630,11 +1113,11 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             const msg = document.getElementById('supervisionMensaje');
             if (data.criterio_parada_activado) {
                 banner.className = 'alert-banner alert-warning';
-                titulo.innerText = 'Supervisión Requerida — Criterio de Parada Activo';
+                titulo.innerText = 'Supervisión Humana Obligatoria — Criterio de Parada Activo';
                 msg.innerText = data.mensaje_parada;
             } else {
                 banner.className = 'alert-banner alert-success';
-                titulo.innerText = 'Operación en Parámetros Normales';
+                titulo.innerText = 'Operación Conforme a Parámetros Nominales';
                 msg.innerText = 'No se registraron quiebres de inventario inminentes. Los saldos satisfacen los puntos de reorden vigentes.';
             }
 
@@ -642,7 +1125,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             tbody.innerHTML = '';
 
             if (data.propuestas_compra.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2.5rem; color: #10b981;">No hay insumos que requieran reorden en este ciclo de operación.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2.5rem; color: #10B981;">No hay insumos que requieran reorden en este ciclo de operación.</td></tr>';
                 return;
             }
 
@@ -651,7 +1134,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 tr.id = 'propuesta-' + p.sku;
                 tr.innerHTML = `
                     <td>
-                        <span class="mono" style="font-weight: 700; color: #60a5fa;">${p.sku}</span><br>
+                        <span class="mono" style="font-weight: 700; color: #60A5FA;">${p.sku}</span><br>
                         <strong>${p.descripcion}</strong><br>
                         <small style="color: var(--text-secondary);">${p.categoria}</small>
                     </td>
@@ -662,9 +1145,9 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                         <small style="color: var(--text-muted);">Prioridad ${p.prioridad || 'Media'}</small>
                     </td>
                     <td><span class="mono">${Number(p.stock_real).toLocaleString('es-CO')}</span> ${p.unidad || 'und'}</td>
-                    <td><span class="mono" style="color: #fbbf24;">${Number(p.punto_reorden_rop).toLocaleString('es-CO')}</span> ${p.unidad || 'und'}</td>
+                    <td><span class="mono" style="color: var(--warning-text);">${Number(p.punto_reorden_rop).toLocaleString('es-CO')}</span> ${p.unidad || 'und'}</td>
                     <td>
-                        <strong class="mono" style="color: #60a5fa; font-size: 1.05rem;">${Number(p.cantidad_sugerida_eoq).toLocaleString('es-CO')}</strong> ${p.unidad || 'und'}<br>
+                        <strong class="mono" style="color: #60A5FA; font-size: 1.05rem;">${Number(p.cantidad_sugerida_eoq).toLocaleString('es-CO')}</strong> ${p.unidad || 'und'}<br>
                         <small style="color: var(--text-muted);">$ ${Number(p.inversion_estimada_cop).toLocaleString('es-CO')}</small>
                     </td>
                     <td>
@@ -687,11 +1170,11 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 const data = await res.json();
                 const celda = document.getElementById('acciones-' + sku);
                 if (accion === 'APROBADA') {
-                    celda.innerHTML = '<span style="color: #10b981; font-weight: 600;">✓ Orden Autorizada</span>';
-                    showToast(`Orden de compra para ${sku} autorizada y asentada en base.`);
+                    celda.innerHTML = '<span style="color: var(--success-text); font-weight: 600;">✓ Orden Autorizada</span>';
+                    showToast(`Orden de compra para SKU ${sku} autorizada y registrada en base de datos.`);
                 } else {
-                    celda.innerHTML = '<span style="color: #f87171; font-weight: 600;">✕ Orden Desestimada</span>';
-                    showToast(`Recomendación para ${sku} desestimada.`);
+                    celda.innerHTML = '<span style="color: var(--danger-text); font-weight: 600;">✕ Orden Desestimada</span>';
+                    showToast(`Recomendación para SKU ${sku} desestimada.`);
                 }
             } catch (err) {
                 showToast('Error al registrar decisión: ' + err.message);
@@ -725,7 +1208,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             lista.forEach(m => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="mono" style="font-weight: 600; color: #60a5fa;">${m.sku}</td>
+                    <td class="mono" style="font-weight: 600; color: #60A5FA;">${m.sku}</td>
                     <td>${m.descripcion}</td>
                     <td><small style="color: var(--text-secondary);">${m.categoria}</small></td>
                     <td><span class="kpi-badge ${m.clasificacion_abc === 'A' ? 'badge-danger' : (m.clasificacion_abc === 'B' ? 'badge-warning' : 'badge-success')}">Clase ${m.clasificacion_abc}</span></td>
@@ -733,9 +1216,9 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                     <td class="mono">${Number(m.consumo_diario_d).toLocaleString('es-CO', {maximumFractionDigits: 2})}</td>
                     <td class="mono">${Number(m.sigma_diario).toLocaleString('es-CO', {maximumFractionDigits: 2})}</td>
                     <td class="mono">${m.lead_time_usado} d</td>
-                    <td class="mono" style="color: #34d399;">${Number(m.SS_95).toLocaleString('es-CO')}</td>
-                    <td class="mono" style="color: #fbbf24; font-weight: 600;">${Number(m.ROP).toLocaleString('es-CO')}</td>
-                    <td class="mono" style="color: #60a5fa; font-weight: 600;">${Number(m.EOQ).toLocaleString('es-CO')}</td>
+                    <td class="mono" style="color: var(--success-text);">${Number(m.SS_95).toLocaleString('es-CO')}</td>
+                    <td class="mono" style="color: var(--warning-text); font-weight: 600;">${Number(m.ROP).toLocaleString('es-CO')}</td>
+                    <td class="mono" style="color: #60A5FA; font-weight: 600;">${Number(m.EOQ).toLocaleString('es-CO')}</td>
                     <td class="mono">${Number(m.stock_real).toLocaleString('es-CO')}</td>
                 `;
                 tbody.appendChild(tr);
@@ -792,15 +1275,15 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 const diag = document.getElementById('diagnosticoEstructural');
                 if (data.valido) {
                     diag.innerHTML = `
-                        <div style="color: #34d399; font-weight: 600; margin-bottom: 0.5rem;">✓ Estructura de archivo conforme para importación</div>
+                        <div style="color: var(--success-text); font-weight: 600; margin-bottom: 0.5rem;">✓ Estructura de archivo conforme para importación</div>
                         <p><strong>Delimitador detectado:</strong> '${data.delimitador}' | <strong>Codificación:</strong> ${data.codificacion.toUpperCase()} | <strong>Filas leídas:</strong> ${data.filas_total}</p>
-                        <p style="margin-top: 0.4rem; color: #cbd5e1;">Columnas requeridas presentes: <em>${data.columnas_esperadas.join(', ')}</em>.</p>
+                        <p style="margin-top: 0.4rem; color: #CBD5E1;">Columnas obligatorias presentes: <em>${data.columnas_esperadas.join(', ')}</em>.</p>
                     `;
                     document.getElementById('btnConfirmarCarga').disabled = false;
-                    showToast('Validación estructural aprobada. Listo para asentar.');
+                    showToast('Validación estructural aprobada. Listo para asentar en base de datos.');
                 } else {
                     diag.innerHTML = `
-                        <div style="color: #f87171; font-weight: 600; margin-bottom: 0.5rem;">✕ Inconsistencia en estructura del archivo</div>
+                        <div style="color: var(--danger-text); font-weight: 600; margin-bottom: 0.5rem;">✕ Inconsistencia en la estructura del archivo</div>
                         <p>${data.mensaje}</p>
                     `;
                     document.getElementById('btnConfirmarCarga').disabled = true;
@@ -809,7 +1292,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 showToast('Error en validación: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<span>Paso 1 y 2: Validar y Previsualizar</span>';
+                btn.innerHTML = '<span>Paso 1 y 2: Validar Estructura y Previsualizar</span>';
             }
         }
 
@@ -831,7 +1314,6 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 });
                 const data = await res.json();
                 
-                // Mostrar panel de rendición de cuentas
                 document.getElementById('panelRendicionCuentas').style.display = 'block';
                 document.getElementById('rcLeidas').innerText = data.filas_leidas;
                 document.getElementById('rcInsertadas').innerText = data.filas_insertadas;
@@ -840,12 +1322,12 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
 
                 trazabilidadActual = data.trazabilidad_filas || [];
                 renderTablaTrazabilidad(trazabilidadActual);
-                showToast(`Carga finalizada: ${data.filas_insertadas} nuevas insertadas, ${data.filas_omitidas_duplicadas} omitidas.`);
+                showToast(`Carga finalizada: ${data.filas_insertadas} nuevas insertadas, ${data.filas_omitidas_duplicadas} omitidas por idempotencia.`);
             } catch (err) {
                 showToast('Error durante la importación: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<span>Paso 3, 4 y 5: Normalizar y Asentar</span>';
+                btn.innerHTML = '<span>Paso 3, 4 y 5: Normalizar y Asentar en Base de Datos</span>';
             }
         }
 
@@ -922,7 +1404,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                             <td class="mono">${c.duracion_ms} ms</td>
                             <td class="mono">${c.total_skus}</td>
                             <td class="mono">${c.eri_global_pct}%</td>
-                            <td class="mono" style="color: #f87171; font-weight: 600;">${c.skus_en_quiebre}</td>
+                            <td class="mono" style="color: var(--danger-text); font-weight: 600;">${c.skus_en_quiebre}</td>
                             <td class="mono">$ ${Number(c.inversion_total_cop).toLocaleString('es-CO')}</td>
                             <td><span class="kpi-badge ${c.criterio_parada_activado ? 'badge-warning' : 'badge-success'}">${c.criterio_parada_activado ? 'Parada Activa' : 'Normal'}</span></td>
                         `;
@@ -943,9 +1425,9 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                             <td><strong>${cg.nombre_archivo}</strong></td>
                             <td><small style="color: var(--text-secondary);">${cg.tipo_documento}</small></td>
                             <td class="mono">${cg.filas_leidas}</td>
-                            <td class="mono" style="color: #34d399;">${cg.filas_cargadas}</td>
-                            <td class="mono" style="color: #60a5fa;">${cg.filas_omitidas_duplicadas}</td>
-                            <td class="mono" style="color: #f87171;">${cg.filas_rechazadas}</td>
+                            <td class="mono" style="color: var(--success-text);">${cg.filas_cargadas}</td>
+                            <td class="mono" style="color: #60A5FA;">${cg.filas_omitidas_duplicadas}</td>
+                            <td class="mono" style="color: var(--danger-text);">${cg.filas_rechazadas}</td>
                             <td style="font-size: 0.8rem; color: var(--text-secondary);">${cg.detalle_rechazos}</td>
                         `;
                         tbodyCargas.appendChild(tr);
@@ -1002,7 +1484,7 @@ class EnterpriseRequestHandler(SimpleHTTPRequestHandler):
             accion = query.get('accion', ['APROBADA'])[0]
             corrida_id = query.get('corrida_id', [None])[0]
             
-            res = datos.registrar_decision(sku, accion, planeador="Planeador de Compras E2", corrida_id=corrida_id)
+            res = datos.registrar_decision(sku, accion, planeador="Planeador de Abastecimiento E2", corrida_id=corrida_id)
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')
             self.end_headers()
