@@ -25,20 +25,45 @@ def auditar_eri(estado, tolerancia=0.05):
       Saldo Teórico = Inventario Inicial + Entradas - Salidas ± Ajustes
     Contrasta contra el conteo físico en piso con umbral de tolerancia del ±5%.
     """
-    mm = estado['maestro_materiales']
-    ii = estado['inventario_inicial']
-    cf = estado['conteo_fisico']
-    mov = estado['movimientos_inventario']
+    mm = estado.get('maestro_materiales', pd.DataFrame()) if estado else pd.DataFrame()
+    ii = estado.get('inventario_inicial', pd.DataFrame()) if estado else pd.DataFrame()
+    cf = estado.get('conteo_fisico', pd.DataFrame()) if estado else pd.DataFrame()
+    mov = estado.get('movimientos_inventario', pd.DataFrame()) if estado else pd.DataFrame()
     
+    if mm.empty:
+        return {
+            'df_auditoria': pd.DataFrame(),
+            'eri_global_pct': 0.0,
+            'total_auditados': 0,
+            'concordantes': 0,
+            'fantasmas': [],
+            'desfases_muelle': [],
+            'impacto_fantasmas_cop': 0.0,
+            'impacto_desfases_cop': 0.0,
+            'impacto_total_cop': 0.0
+        }
+
     # 1. Agrupación y Reconstrucción del Kardex Canónico
-    mov_neto = mov.groupby(['sku', 'tipo_movimiento'])['cantidad'].sum().unstack(fill_value=0)
-    entradas = mov_neto['entrada'] if 'entrada' in mov_neto.columns else pd.Series(0, index=mov_neto.index)
-    salidas = mov_neto['salida'] if 'salida' in mov_neto.columns else pd.Series(0, index=mov_neto.index)
-    ajustes = mov_neto['ajuste'] if 'ajuste' in mov_neto.columns else pd.Series(0, index=mov_neto.index)
+    if not mov.empty and 'sku' in mov.columns and 'tipo_movimiento' in mov.columns:
+        mov_neto = mov.groupby(['sku', 'tipo_movimiento'])['cantidad'].sum().unstack(fill_value=0)
+        entradas = mov_neto['entrada'] if 'entrada' in mov_neto.columns else pd.Series(0, index=mov_neto.index)
+        salidas = mov_neto['salida'] if 'salida' in mov_neto.columns else pd.Series(0, index=mov_neto.index)
+        ajustes = mov_neto['ajuste'] if 'ajuste' in mov_neto.columns else pd.Series(0, index=mov_neto.index)
+    else:
+        entradas = pd.Series(dtype=float)
+        salidas = pd.Series(dtype=float)
+        ajustes = pd.Series(dtype=float)
     
     df = mm[['sku', 'descripcion', 'categoria', 'costo_unitario']].copy()
-    df = df.merge(ii[['sku', 'stock_inicial']], on='sku', how='left').fillna({'stock_inicial': 0})
-    df = df.merge(cf[['sku', 'stock_fisico_contado']], on='sku', how='left')
+    if not ii.empty and 'stock_inicial' in ii.columns:
+        df = df.merge(ii[['sku', 'stock_inicial']], on='sku', how='left').fillna({'stock_inicial': 0})
+    else:
+        df['stock_inicial'] = 0.0
+        
+    if not cf.empty and 'stock_fisico_contado' in cf.columns:
+        df = df.merge(cf[['sku', 'stock_fisico_contado']], on='sku', how='left')
+    else:
+        df['stock_fisico_contado'] = np.nan
     
     df = df.merge(entradas.rename('entradas'), on='sku', how='left').fillna({'entradas': 0})
     df = df.merge(salidas.rename('salidas'), on='sku', how='left').fillna({'salidas': 0})

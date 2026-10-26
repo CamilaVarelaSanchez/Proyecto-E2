@@ -99,22 +99,44 @@ def detectar_delimitador_y_codificacion(contenido_bytes):
 
 def validar_y_normalizar_fecha(fecha_str):
     """
-    Evalúa si la fecha es estrictamente válida en calendario Gregoriano.
+    Evalúa si la fecha es estrictamente válida en calendario Gregoriano dentro del horizonte operacional (2000-2050).
     Retorna (fecha_normalizada, error_o_none).
-    Detecta anomalías imposibles como mes 13 (ej. '2026-13-05') o días inexistentes.
+    Detecta anomalías imposibles como mes 13 (ej. '2026-13-05'), días inexistentes (ej. '2026-02-30') o años fuera de rango.
     """
     if pd.isna(fecha_str) or not str(fecha_str).strip():
         return None, "Fecha vacía o nula"
         
     s = str(fecha_str).strip()
     
-    # Evaluar formato ISO YYYY-MM-DD
-    match = re.match(r'^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$', s)
-    if match:
-        year = int(match.group(1))
-        month = int(match.group(2))
-        day = int(match.group(3))
+    # 1. Formato ISO YYYY-MM-DD o YYYY/MM/DD
+    match_iso = re.match(r'^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$', s)
+    if match_iso:
+        year = int(match_iso.group(1))
+        month = int(match_iso.group(2))
+        day = int(match_iso.group(3))
         
+        if year < 2000 or year > 2050:
+            return None, f"Año {year} fuera del horizonte operacional permitido (2000-2050) en fecha '{s}'"
+        if month < 1 or month > 12:
+            return None, f"Mes {month} fuera de rango permitido (1-12) en fecha '{s}'"
+        if day < 1 or day > 31:
+            return None, f"Día {day} fuera de rango permitido en fecha '{s}'"
+            
+        try:
+            valida = datetime(year, month, day)
+            return valida.strftime('%Y-%m-%d'), None
+        except ValueError as ve:
+            return None, f"Fecha de calendario inexistente o inválida '{s}': {ve}"
+
+    # 2. Formato latino DD-MM-YYYY o DD/MM/YYYY
+    match_dmy = re.match(r'^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$', s)
+    if match_dmy:
+        day = int(match_dmy.group(1))
+        month = int(match_dmy.group(2))
+        year = int(match_dmy.group(3))
+        
+        if year < 2000 or year > 2050:
+            return None, f"Año {year} fuera del horizonte operacional permitido (2000-2050) en fecha '{s}'"
         if month < 1 or month > 12:
             return None, f"Mes {month} fuera de rango permitido (1-12) en fecha '{s}'"
         if day < 1 or day > 31:
@@ -126,26 +148,53 @@ def validar_y_normalizar_fecha(fecha_str):
         except ValueError as ve:
             return None, f"Fecha de calendario inexistente o inválida '{s}': {ve}"
             
+    # 3. Fallback general controlado
     try:
-        dt = pd.to_datetime(s, format='%Y-%m-%d', errors='raise')
+        dt = pd.to_datetime(s, errors='raise')
+        if dt.year < 2000 or dt.year > 2050:
+            return None, f"Año {dt.year} fuera del horizonte operacional permitido (2000-2050) en fecha '{s}'"
         return dt.strftime('%Y-%m-%d'), None
     except Exception:
         pass
         
-    return None, f"Formato de fecha irreconocible '{s}'"
+    return None, f"Formato de fecha no válido ('{s}'). Se requiere formato YYYY-MM-DD"
 
 def previsualizar_archivo(nombre_archivo, contenido_bytes, tipo_documento='movimientos_inventario', n_filas=8):
     """
-    Paso 1 y 2: Previsualiza el archivo, calcula hashes criptográficos y valida estructura de columnas.
+    Paso 1 y 2: Previsualiza el archivo, calcula hashes criptográficos y valida estructura de columnas de forma defensiva.
     """
+    if not isinstance(contenido_bytes, (bytes, bytearray)):
+        contenido_bytes = str(contenido_bytes or '').encode('utf-8')
+
     tamano_kb = round(len(contenido_bytes) / 1024, 2)
     hash_sha256 = hashlib.sha256(contenido_bytes).hexdigest()
     hash_md5 = hashlib.md5(contenido_bytes).hexdigest()
+    cols_esperadas = COLUMNAS_REQUERIDAS.get(tipo_documento, [])
+
+    # Manejo defensivo: Archivo vacío (0 bytes o solo espacios)
+    if not contenido_bytes.strip():
+        return {
+            'valido': False,
+            'nombre_archivo': os.path.basename(nombre_archivo),
+            'tamano_kb': 0.0,
+            'hash_archivo_sha256': hash_sha256,
+            'hash_archivo_md5': hash_md5,
+            'codificacion': 'utf-8',
+            'delimitador': ',',
+            'filas_total': 0,
+            'columnas_encontradas': [],
+            'columnas_esperadas': cols_esperadas,
+            'columnas_faltantes': cols_esperadas,
+            'mensaje': "El archivo está vacío (0 bytes). Seleccione un archivo CSV con registros tabulares.",
+            'vista_previa': []
+        }
     
     texto, delimitador, codificacion = detectar_delimitador_y_codificacion(contenido_bytes)
     
     try:
-        df = pd.read_csv(io.StringIO(texto), sep=delimitador)
+        df = pd.read_csv(io.StringIO(texto), sep=delimitador, on_bad_lines='skip')
+        if df.empty and len(texto.strip()) > 0:
+            raise ValueError("El archivo no contiene filas con datos estructurados.")
     except Exception as e:
         return {
             'valido': False,
@@ -153,16 +202,19 @@ def previsualizar_archivo(nombre_archivo, contenido_bytes, tipo_documento='movim
             'tamano_kb': tamano_kb,
             'hash_archivo_sha256': hash_sha256,
             'hash_archivo_md5': hash_md5,
-            'mensaje': f"No se pudo estructurar el archivo CSV: {str(e)}",
-            'columnas': [],
+            'codificacion': codificacion,
+            'delimitador': delimitador,
+            'mensaje': f"No se pudo estructurar el archivo CSV (archivo corrupto o líneas malformadas): {str(e)}",
+            'columnas_encontradas': [],
+            'columnas_esperadas': cols_esperadas,
+            'columnas_faltantes': cols_esperadas,
             'filas_total': 0,
             'vista_previa': []
         }
         
-    cols_encontradas = [str(c).strip().lower() for c in df.columns]
+    cols_encontradas = [str(c).strip().lower().replace('"', '').replace("'", '') for c in df.columns]
     df.columns = cols_encontradas
     
-    cols_esperadas = COLUMNAS_REQUERIDAS.get(tipo_documento, [])
     faltantes = [c for c in cols_esperadas if c not in cols_encontradas]
     
     # Vista previa segura convirtiendo NaN a None
@@ -211,31 +263,53 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
         texto, delimitador, _ = detectar_delimitador_y_codificacion(raw_bytes)
         stream = io.StringIO(texto)
     else:
-        raw_bytes = str(contenido_bytes_o_str).encode('utf-8')
-        stream = io.StringIO(str(contenido_bytes_o_str))
-        delimitador = ','
+        raw_bytes = str(contenido_bytes_o_str or '').encode('utf-8')
+        texto, delimitador, _ = detectar_delimitador_y_codificacion(raw_bytes)
+        stream = io.StringIO(texto)
         
     hash_archivo_sha256 = hashlib.sha256(raw_bytes).hexdigest()
     hash_archivo_md5 = hashlib.md5(raw_bytes).hexdigest()
+
+    # Manejo defensivo: Archivo vacío
+    if not raw_bytes.strip():
+        conn.close()
+        return {
+            'status': 'error_lectura',
+            'mensaje': 'Paso 1 fallido: El archivo cargado está vacío (0 bytes o sin registros).',
+            'hash_archivo_sha256': hash_archivo_sha256,
+            'hash_archivo_md5': hash_archivo_md5,
+            'filas_leidas': 0, 'filas_cargadas': 0, 'filas_rechazadas': 0,
+            'filas_insertadas': 0, 'filas_actualizadas': 0, 'filas_insertadas_o_actualizadas': 0,
+            'filas_omitidas_duplicadas': 0,
+            'total_registros_procesados': 0, 'estado_carga': 'Rechazado',
+            'trazabilidad_filas': [],
+            'resumen_ejecutivo': 'El archivo cargado está vacío. No se realizaron cambios en la base de datos.'
+        }
         
     try:
-        df_raw = pd.read_csv(stream, sep=delimitador)
+        df_raw = pd.read_csv(stream, sep=delimitador, on_bad_lines='skip')
+        if df_raw.empty and len(raw_bytes.strip()) > 0:
+            raise ValueError("No se encontraron registros tabulares válidos en el archivo.")
     except Exception as e:
         conn.close()
         return {
             'status': 'error_lectura',
-            'mensaje': f'Paso 1 fallido: Error de parseo en archivo CSV: {str(e)}',
+            'mensaje': f'Paso 1 fallido: Error de interpretación en archivo CSV ({str(e)})',
             'hash_archivo_sha256': hash_archivo_sha256,
             'hash_archivo_md5': hash_archivo_md5,
             'filas_leidas': 0, 'filas_cargadas': 0, 'filas_rechazadas': 0,
-            'total_registros_procesados': 0, 'estado_carga': 'Rechazado'
+            'filas_insertadas': 0, 'filas_actualizadas': 0, 'filas_insertadas_o_actualizadas': 0,
+            'filas_omitidas_duplicadas': 0,
+            'total_registros_procesados': 0, 'estado_carga': 'Rechazado',
+            'trazabilidad_filas': [],
+            'resumen_ejecutivo': f'Archivo corrupto o malformado: {str(e)}'
         }
 
     filas_leidas = len(df_raw)
     
-    # PASO 2: VALIDAR (Columnas mínimas requeridas)
+    # PASO 2: VALIDAR (Columnas mínimas requeridas, insensibles al orden y espacios)
     cols_esperadas = COLUMNAS_REQUERIDAS.get(tipo_documento, [])
-    cols_presentes = [str(c).strip().lower() for c in df_raw.columns]
+    cols_presentes = [str(c).strip().lower().replace('"', '').replace("'", '') for c in df_raw.columns]
     df_raw.columns = cols_presentes
     
     faltantes = [c for c in cols_esperadas if c not in cols_presentes]
@@ -257,6 +331,7 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             'filas_omitidas_duplicadas': 0,
             'filas_rechazadas': filas_leidas,
             'estado_carga': 'Rechazado',
+            'resumen_ejecutivo': f"Estructura no conforme: faltan columnas requeridas {faltantes}.",
             'trazabilidad_filas': [{
                 'fila': i + 1, 'identificador': f"Fila {i + 1}", 'estado': 'RECHAZADA',
                 'motivo': 'Columnas estructurales faltantes', 'detalle': f"El archivo carece de {faltantes}",
@@ -757,8 +832,15 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
     else:
         estado_carga = 'Rechazado'
 
-    # Asentar la auditoría en la BITÁCORA DE CARGAS
-    resumen_motivos = f"{filas_leidas} procesados | {filas_modificadas} insertados/actualizados | {filas_omitidas_duplicadas} omitidos | {filas_rechazadas} rechazados"
+    # Construcción de resumen ejecutivo para la alta dirección / auditoría
+    primer_rechazo = next((f for f in trazabilidad_filas if f['estado'] == 'RECHAZADA'), None)
+    if primer_rechazo and (filas_modificadas + filas_omitidas_duplicadas) > 0:
+        resumen_ejecutivo = f"No fue posible procesar la fila {primer_rechazo['fila']} debido a un {primer_rechazo['motivo'].lower()}. El resto de los datos se procesó correctamente."
+    elif filas_rechazadas > 0 and (filas_modificadas + filas_omitidas_duplicadas) == 0:
+        resumen_ejecutivo = f"Se rechazaron {filas_rechazadas} fila(s) del lote debido a inconsistencias estructurales o de formato."
+    else:
+        resumen_ejecutivo = f"{filas_leidas} registros procesados con éxito ({filas_modificadas} modificados, {filas_omitidas_duplicadas} omitidos por idempotencia)."
+
     cur.execute("""
     INSERT INTO bitacora_cargas 
     (id, timestamp, nombre_archivo, tipo_documento, filas_leidas, filas_cargadas, filas_rechazadas, filas_omitidas_duplicadas, detalle_rechazos, usuario, hash_archivo_sha256)
@@ -766,7 +848,7 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
     """, (
         id_carga, timestamp_carga, os.path.basename(nombre_archivo), tipo_documento,
         filas_leidas, filas_modificadas, filas_rechazadas, filas_omitidas_duplicadas,
-        resumen_motivos, usuario, hash_archivo_sha256
+        resumen_ejecutivo, usuario, hash_archivo_sha256
     ))
     conn.commit()
     conn.close()
@@ -793,6 +875,6 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
         'cambio_neto_base': conteo_posterior - conteo_previo,
         'es_idempotente': (conteo_posterior == conteo_previo) if (filas_leidas > 0 and filas_modificadas == 0 and filas_rechazadas == 0) else True,
         'sincronizacion_supabase': sincronizacion_sb,
-        'resumen_ejecutivo': resumen_motivos,
+        'resumen_ejecutivo': resumen_ejecutivo,
         'trazabilidad_filas': trazabilidad_filas
     }

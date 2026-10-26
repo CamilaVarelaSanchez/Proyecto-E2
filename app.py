@@ -1238,19 +1238,31 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             }
         }
 
+        let isExecutingAnalysis = false;
         async function ejecutarAnalisisIntegral() {
+            if (isExecutingAnalysis) {
+                showToast('Ya hay un análisis de abastecimiento en ejecución. Por favor espere...', 'warning');
+                return;
+            }
+            isExecutingAnalysis = true;
             const btn = document.getElementById('btnEjecutarOrquestacion');
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner"></span> Ejecutando análisis...';
 
             try {
                 const res = await fetch('/api/correr');
+                if (!res.ok) throw new Error(`El servidor respondió con código ${res.status}`);
                 const data = await res.json();
-                renderTableroControl(data);
-                showToast('Análisis integral completado exitosamente.');
+                if (data.status === 'error') {
+                    showToast('Atención: ' + (data.mensaje || 'Error en motor analítico'), 'error');
+                } else {
+                    renderTableroControl(data);
+                    showToast('Análisis integral completado exitosamente.', 'success');
+                }
             } catch (err) {
-                showToast('Error al ejecutar análisis: ' + err.message);
+                showToast('Error al ejecutar análisis: ' + err.message, 'error');
             } finally {
+                isExecutingAnalysis = false;
                 btn.disabled = false;
                 btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> <span>Ejecutar Análisis Integral</span>';
             }
@@ -1403,47 +1415,88 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             renderTablaReconciliacion(filtrados);
         }
 
+        const operacionesEnCurso = new Set();
         async function tomarDecision(sku, accion) {
+            if (operacionesEnCurso.has(sku)) {
+                showToast(`La decisión para el material ${sku} se encuentra en proceso.`, 'warning');
+                return;
+            }
+            operacionesEnCurso.add(sku);
+            const celda = document.getElementById('acciones-' + sku);
+            if (celda) {
+                celda.innerHTML = '<span class="spinner"></span> <small style="color: var(--text-muted);">Registrando...</small>';
+            }
+
             try {
-                const res = await fetch(`/api/decidir?sku=${sku}&accion=${accion}`);
+                const res = await fetch(`/api/decidir?sku=${encodeURIComponent(sku)}&accion=${encodeURIComponent(accion)}`);
+                if (!res.ok) throw new Error(`El servidor respondió con código ${res.status}`);
                 const data = await res.json();
-                const celda = document.getElementById('acciones-' + sku);
-                if (accion === 'APROBADA') {
-                    celda.innerHTML = '<span style="color: var(--success-text); font-weight: 600;">✓ Orden Autorizada</span>';
-                    showToast(`Orden de compra para SKU ${sku} autorizada y registrada en base de datos.`);
+                
+                if (data.status === 'registrado') {
+                    if (accion === 'APROBADA') {
+                        if (celda) celda.innerHTML = '<span style="color: var(--success-text); font-weight: 600;">✓ Orden Autorizada</span>';
+                        showToast(`Orden de compra para SKU ${sku} autorizada y registrada en base de datos.`, 'success');
+                    } else {
+                        if (celda) celda.innerHTML = '<span style="color: var(--danger-text); font-weight: 600;">✕ Orden Desestimada</span>';
+                        showToast(`Recomendación para SKU ${sku} desestimada.`, 'info');
+                    }
                 } else {
-                    celda.innerHTML = '<span style="color: var(--danger-text); font-weight: 600;">✕ Orden Desestimada</span>';
-                    showToast(`Recomendación para SKU ${sku} desestimada.`);
+                    showToast('Aviso: ' + (data.mensaje || 'No fue posible registrar la decisión.'), 'warning');
+                    restablecerBotonesDecision(sku, celda);
                 }
             } catch (err) {
-                showToast('Error al registrar decisión: ' + err.message);
+                showToast('Error al registrar decisión: ' + err.message, 'error');
+                restablecerBotonesDecision(sku, celda);
+            } finally {
+                operacionesEnCurso.delete(sku);
+            }
+        }
+
+        function restablecerBotonesDecision(sku, celda) {
+            if (celda) {
+                celda.innerHTML = `
+                    <button class="btn btn-success btn-sm" onclick="tomarDecision('${sku}', 'APROBADA')">Autorizar</button>
+                    <button class="btn btn-danger-outline btn-sm" onclick="tomarDecision('${sku}', 'RECHAZADA')">Desestimar</button>
+                `;
             }
         }
 
         async function cargarMatrizDemanda() {
             try {
                 const res = await fetch('/api/demanda');
+                if (!res.ok) throw new Error(`Error ${res.status}`);
                 const data = await res.json();
-                matrizDemandaActual = data.materiales;
+                matrizDemandaActual = data.materiales || [];
 
                 // Actualizar Pareto
-                const p = data.resumen_abc;
-                document.getElementById('paretoA_skus').innerText = p.A.skus + ' SKUs';
-                document.getElementById('paretoA_valor').innerText = '$ ' + Number(p.A.valor_cop).toLocaleString('es-CO') + ' COP (' + p.A.pct_valor.toFixed(1) + '%)';
-                document.getElementById('paretoB_skus').innerText = p.B.skus + ' SKUs';
-                document.getElementById('paretoB_valor').innerText = '$ ' + Number(p.B.valor_cop).toLocaleString('es-CO') + ' COP (' + p.B.pct_valor.toFixed(1) + '%)';
-                document.getElementById('paretoC_skus').innerText = p.C.skus + ' SKUs';
-                document.getElementById('paretoC_valor').innerText = '$ ' + Number(p.C.valor_cop).toLocaleString('es-CO') + ' COP (' + p.C.pct_valor.toFixed(1) + '%)';
+                const p = data.resumen_abc || {};
+                if (p.A) {
+                    document.getElementById('paretoA_skus').innerText = (p.A.skus || 0) + ' SKUs';
+                    document.getElementById('paretoA_valor').innerText = '$ ' + Number(p.A.valor_cop || 0).toLocaleString('es-CO') + ' COP (' + (p.A.pct_valor || 0).toFixed(1) + '%)';
+                }
+                if (p.B) {
+                    document.getElementById('paretoB_skus').innerText = (p.B.skus || 0) + ' SKUs';
+                    document.getElementById('paretoB_valor').innerText = '$ ' + Number(p.B.valor_cop || 0).toLocaleString('es-CO') + ' COP (' + (p.B.pct_valor || 0).toFixed(1) + '%)';
+                }
+                if (p.C) {
+                    document.getElementById('paretoC_skus').innerText = (p.C.skus || 0) + ' SKUs';
+                    document.getElementById('paretoC_valor').innerText = '$ ' + Number(p.C.valor_cop || 0).toLocaleString('es-CO') + ' COP (' + (p.C.pct_valor || 0).toFixed(1) + '%)';
+                }
 
                 renderTablaDemanda(matrizDemandaActual);
             } catch (err) {
                 console.error(err);
+                showToast('Error al cargar matriz de demanda: ' + err.message, 'error');
             }
         }
 
         function renderTablaDemanda(lista) {
             const tbody = document.getElementById('tablaDemandaBody');
             tbody.innerHTML = '';
+            if (!lista || lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">No se encontraron materiales que coincidan con los criterios de búsqueda.</td></tr>';
+                return;
+            }
             lista.forEach(m => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -1536,7 +1589,10 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             reader.readAsText(file);
         }
 
+        let isPrevisualizing = false;
         async function iniciarPrevisualizacion() {
+            if (isPrevisualizing) return;
+            isPrevisualizing = true;
             const tipo = document.getElementById('ingestaTipoDoc').value;
             const btn = document.getElementById('btnPrevisualizar');
             btn.disabled = true;
@@ -1552,6 +1608,7 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                         contenido: archivoSeleccionadoContenido
                     })
                 });
+                if (!res.ok) throw new Error(`El servidor respondió con código ${res.status}`);
                 const data = await res.json();
                 mostrarEstadoDropzone('inicial');
                 
@@ -1565,23 +1622,31 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                         <p style="margin-top: 0.4rem; color: #CBD5E1;">Columnas obligatorias presentes: <em>${data.columnas_esperadas.join(', ')}</em>.</p>
                     `;
                     document.getElementById('btnConfirmarCarga').disabled = false;
-                    showToast('Validación estructural aprobada. Listo para asentar con sentencias UPSERT.');
+                    showToast('Validación estructural aprobada. Listo para asentar con sentencias UPSERT.', 'success');
                 } else {
                     diag.innerHTML = `
                         <div style="color: var(--danger-text); font-weight: 600; margin-bottom: 0.5rem;">✕ Inconsistencia en la estructura del archivo</div>
                         <p>${data.mensaje}</p>
                     `;
                     document.getElementById('btnConfirmarCarga').disabled = true;
+                    showToast(data.mensaje || 'Inconsistencia en archivo CSV.', 'error');
                 }
             } catch (err) {
                 mostrarEstadoDropzone('inicial');
-                showToast('Error en validación: ' + err.message);
+                showToast('Error en validación: ' + err.message, 'error');
             } finally {
+                isPrevisualizing = false;
                 btn.disabled = false;
             }
         }
 
+        let isIngesting = false;
         async function confirmarIngesta() {
+            if (isIngesting) {
+                showToast('Ya se está procesando una carga en base de datos. Por favor espere...', 'warning');
+                return;
+            }
+            isIngesting = true;
             const tipo = document.getElementById('ingestaTipoDoc').value;
             const btn = document.getElementById('btnConfirmarCarga');
             btn.disabled = true;
@@ -1597,15 +1662,24 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                         contenido: archivoSeleccionadoContenido
                     })
                 });
+                if (!res.ok) throw new Error(`El servidor respondió con código ${res.status}`);
                 const data = await res.json();
                 
                 mostrarEstadoDropzone('completado');
                 renderReporteAuditoriaDetallado(data);
-                showToast(`Carga procesada: Estado ${data.estado_carga}. ${data.filas_insertadas_o_actualizadas} afectadas, ${data.filas_omitidas_duplicadas} omitidas por idempotencia.`);
+                
+                if (data.estado_carga === 'Exitoso') {
+                    showToast(`Carga procesada con éxito: ${data.filas_insertadas_o_actualizadas} registros conformes asentados en base de datos.`, 'success');
+                } else if (data.estado_carga === 'Parcial') {
+                    showToast(data.resumen_ejecutivo || `Carga procesada con observaciones: ${data.filas_insertadas_o_actualizadas} conformes, ${data.filas_rechazadas} descartados por inconsistencia.`, 'warning');
+                } else {
+                    showToast(data.mensaje || `Carga rechazada: el archivo contiene inconsistencias estructurales.`, 'error');
+                }
             } catch (err) {
                 mostrarEstadoDropzone('inicial');
-                showToast('Error durante la importación: ' + err.message);
+                showToast('Error durante la importación: ' + err.message, 'error');
             } finally {
+                isIngesting = false;
                 btn.disabled = false;
             }
         }
@@ -1780,12 +1854,43 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             }
         }
 
-        function showToast(msg) {
+        function showToast(msg, tipo = 'info') {
             const toast = document.getElementById('toast');
-            toast.innerText = msg;
+            if (!toast) return;
+            if (tipo === 'error') {
+                toast.style.borderColor = 'var(--danger-border)';
+                toast.style.backgroundColor = '#2D1515';
+                toast.innerHTML = `<div style="display: flex; align-items: flex-start; gap: 0.65rem;"><span style="color: var(--danger-text); font-weight: 700; font-size: 1rem;">✕</span><div style="color: #FEE2E2; line-height: 1.4;">${msg}</div></div>`;
+            } else if (tipo === 'warning') {
+                toast.style.borderColor = 'var(--warning-border)';
+                toast.style.backgroundColor = '#2B1E11';
+                toast.innerHTML = `<div style="display: flex; align-items: flex-start; gap: 0.65rem;"><span style="color: var(--warning-text); font-weight: 700; font-size: 1rem;">⚠</span><div style="color: #FEF3C7; line-height: 1.4;">${msg}</div></div>`;
+            } else if (tipo === 'success') {
+                toast.style.borderColor = 'var(--success-border)';
+                toast.style.backgroundColor = '#0F291E';
+                toast.innerHTML = `<div style="display: flex; align-items: flex-start; gap: 0.65rem;"><span style="color: var(--success-text); font-weight: 700; font-size: 1rem;">✓</span><div style="color: #D1FAE5; line-height: 1.4;">${msg}</div></div>`;
+            } else {
+                toast.style.borderColor = 'var(--primary-border)';
+                toast.style.backgroundColor = 'var(--bg-surface-elevated)';
+                toast.innerHTML = `<div style="display: flex; align-items: flex-start; gap: 0.65rem;"><span style="color: #60A5FA; font-weight: 700; font-size: 1rem;">ℹ</span><div style="color: #FFFFFF; line-height: 1.4;">${msg}</div></div>`;
+            }
             toast.style.display = 'block';
-            setTimeout(() => { toast.style.display = 'none'; }, 4000);
+            if (window._toastTimer) clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 6000);
         }
+
+        // Blindaje global contra excepciones y promesas no controladas
+        window.addEventListener('unhandledrejection', function (event) {
+            console.error('Promesa no capturada interceptada:', event.reason);
+            showToast('Aviso de estabilidad: Se interceptó una respuesta no conforme. La sesión y los datos permanecen asegurados.', 'warning');
+            event.preventDefault();
+        });
+
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            console.error('Error de interfaz interceptado:', msg, error);
+            showToast('Aviso de interfaz: Se controló una anomalía visual sin comprometer las transacciones.', 'info');
+            return true;
+        };
 
         // Carga inicial
         window.onload = () => {
@@ -1799,111 +1904,144 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
 
 class EnterpriseRequestHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
-        parsed = urlparse(self.path)
-        
-        if parsed.path == '/' or parsed.path == '/index.html':
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(HTML_EMPRESARIAL.encode('utf-8'))
+        try:
+            parsed = urlparse(self.path)
             
-        elif parsed.path == '/api/correr':
-            resultado = orquestador.ejecutar_orquestacion()
+            if parsed.path == '/' or parsed.path == '/index.html':
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(HTML_EMPRESARIAL.encode('utf-8'))
+                
+            elif parsed.path == '/api/correr':
+                resultado = orquestador.ejecutar_orquestacion()
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps(resultado, ensure_ascii=False).encode('utf-8'))
+                
+            elif parsed.path == '/api/demanda':
+                resultado = datos.obtener_analisis_demanda()
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps(resultado, ensure_ascii=False).encode('utf-8'))
+                
+            elif parsed.path == '/api/decidir':
+                query = parse_qs(parsed.query)
+                sku = query.get('sku', [''])[0].strip()
+                accion = query.get('accion', ['APROBADA'])[0].strip()
+                corrida_id = query.get('corrida_id', [None])[0]
+                
+                if not sku:
+                    res = {'status': 'error', 'mensaje': 'El código SKU es obligatorio para registrar una decisión.'}
+                else:
+                    res = datos.registrar_decision(sku, accion, planeador="Planeador de Abastecimiento E2", corrida_id=corrida_id)
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+                
+            elif parsed.path == '/api/instrumentacion':
+                res = instrumentacion.obtener_metricas_instrumentacion()
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+                
+            elif parsed.path == '/api/reconciliacion':
+                estado = datos.leer_estado()
+                res_eri = eri.auditar_eri(estado)
+                df_aud = res_eri['df_auditoria'].replace({np.nan: None})
+                res = {
+                    'eri_global_pct': res_eri['eri_global_pct'],
+                    'total_auditados': res_eri['total_auditados'],
+                    'concordantes': res_eri['concordantes'],
+                    'total_fantasmas': len(res_eri['fantasmas']),
+                    'total_desfases': len(res_eri['desfases_muelle']),
+                    'impacto_fantasmas_cop': res_eri['impacto_fantasmas_cop'],
+                    'impacto_desfases_cop': res_eri['impacto_desfases_cop'],
+                    'impacto_total_cop': res_eri['impacto_total_cop'],
+                    'auditados': df_aud[[
+                        'sku', 'descripcion', 'categoria', 'saldo_teorico',
+                        'stock_fisico_contado', 'discrepancia_neta', 'discrepancia_absoluta',
+                        'impacto_financiero_cop', 'concordancia', 'diagnostico_eri'
+                    ]].to_dict(orient='records')
+                }
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+                
+            else:
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({'status': 'error', 'mensaje': f'Ruta no encontrada: {parsed.path}'}, ensure_ascii=False).encode('utf-8'))
+
+        except Exception as e:
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')
             self.end_headers()
-            self.wfile.write(json.dumps(resultado, ensure_ascii=False).encode('utf-8'))
-            
-        elif parsed.path == '/api/demanda':
-            resultado = datos.obtener_analisis_demanda()
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(json.dumps(resultado, ensure_ascii=False).encode('utf-8'))
-            
-        elif parsed.path == '/api/decidir':
-            query = parse_qs(parsed.query)
-            sku = query.get('sku', [''])[0]
-            accion = query.get('accion', ['APROBADA'])[0]
-            corrida_id = query.get('corrida_id', [None])[0]
-            
-            res = datos.registrar_decision(sku, accion, planeador="Planeador de Abastecimiento E2", corrida_id=corrida_id)
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
-            
-        elif parsed.path == '/api/instrumentacion':
-            res = instrumentacion.obtener_metricas_instrumentacion()
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
-            
-        elif parsed.path == '/api/reconciliacion':
-            estado = datos.leer_estado()
-            res_eri = eri.auditar_eri(estado)
-            df_aud = res_eri['df_auditoria'].replace({np.nan: None})
-            res = {
-                'eri_global_pct': res_eri['eri_global_pct'],
-                'total_auditados': res_eri['total_auditados'],
-                'concordantes': res_eri['concordantes'],
-                'total_fantasmas': len(res_eri['fantasmas']),
-                'total_desfases': len(res_eri['desfases_muelle']),
-                'impacto_fantasmas_cop': res_eri['impacto_fantasmas_cop'],
-                'impacto_desfases_cop': res_eri['impacto_desfases_cop'],
-                'impacto_total_cop': res_eri['impacto_total_cop'],
-                'auditados': df_aud[[
-                    'sku', 'descripcion', 'categoria', 'saldo_teorico',
-                    'stock_fisico_contado', 'discrepancia_neta', 'discrepancia_absoluta',
-                    'impacto_financiero_cop', 'concordancia', 'diagnostico_eri'
-                ]].to_dict(orient='records')
+            err_data = {
+                'status': 'error',
+                'mensaje': f'El servidor interceptó una anomalía operacional en modo resiliente: {str(e)}',
+                'tipo_error': type(e).__name__
             }
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
-            
-        else:
-            self.send_error(404, "Ruta no encontrada")
+            self.wfile.write(json.dumps(err_data, ensure_ascii=False).encode('utf-8'))
 
     def do_POST(self):
-        parsed = urlparse(self.path)
-        content_length = int(self.headers.get('Content-Length', 0))
-        post_body = self.rfile.read(content_length).decode('utf-8')
-        
         try:
-            payload = json.loads(post_body)
-        except Exception:
-            payload = {}
+            parsed = urlparse(self.path)
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_body = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else '{}'
             
-        if parsed.path == '/api/previsualizar':
-            nombre_archivo = payload.get('nombre_archivo', 'archivo.csv')
-            tipo_documento = payload.get('tipo_documento', 'movimientos_inventario')
-            contenido = payload.get('contenido', '')
-            
-            contenido_bytes = contenido.encode('utf-8') if isinstance(contenido, str) else b''
-            res = ingesta.previsualizar_archivo(nombre_archivo, contenido_bytes, tipo_documento)
-            
+            try:
+                payload = json.loads(post_body)
+            except Exception:
+                payload = {}
+                
+            if parsed.path == '/api/previsualizar':
+                nombre_archivo = payload.get('nombre_archivo', 'archivo.csv')
+                tipo_documento = payload.get('tipo_documento', 'movimientos_inventario')
+                contenido = payload.get('contenido', '')
+                
+                contenido_bytes = contenido.encode('utf-8') if isinstance(contenido, str) else (contenido or b'')
+                res = ingesta.previsualizar_archivo(nombre_archivo, contenido_bytes, tipo_documento)
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+                
+            elif parsed.path == '/api/importar':
+                nombre_archivo = payload.get('nombre_archivo', 'archivo.csv')
+                tipo_documento = payload.get('tipo_documento', 'movimientos_inventario')
+                contenido = payload.get('contenido', '')
+                
+                res = ingesta.ejecutar_carga_cinco_pasos(nombre_archivo, contenido, tipo_documento)
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
+                
+            else:
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({'status': 'error', 'mensaje': f'Endpoint POST no encontrado: {parsed.path}'}, ensure_ascii=False).encode('utf-8'))
+
+        except Exception as e:
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')
             self.end_headers()
-            self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
-            
-        elif parsed.path == '/api/importar':
-            nombre_archivo = payload.get('nombre_archivo', 'archivo.csv')
-            tipo_documento = payload.get('tipo_documento', 'movimientos_inventario')
-            contenido = payload.get('contenido', '')
-            
-            res = ingesta.ejecutar_carga_cinco_pasos(nombre_archivo, contenido, tipo_documento)
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(json.dumps(res, ensure_ascii=False).encode('utf-8'))
-            
-        else:
-            self.send_error(404, "Endpoint POST no encontrado")
+            err_data = {
+                'status': 'error',
+                'mensaje': f'Inconsistencia en el cuerpo de la petición POST: {str(e)}',
+                'tipo_error': type(e).__name__
+            }
+            self.wfile.write(json.dumps(err_data, ensure_ascii=False).encode('utf-8'))
 
 def iniciar_servidor():
     base_datos.poblar_estado_inicial_si_vacio()

@@ -1,5 +1,5 @@
 {
-  "id": "20ac2e1f-626a-460a-8b35-edb249dccdd6",
+  "id": "9a049397-ce7a-419e-ace9-ad830d07738e",
   "status": "completado",
   "kpis": {
     "total_skus": 440,
@@ -65,7 +65,7 @@
     "total_fantasmas": 24,
     "total_desfases": 99,
     "impacto_financiero_fantasmas_cop": 2580111357.0,
-    "impacto_financiero_total_cop": 48606377541.2,
+    "impacto_financiero_total_cop": 48609068856.2,
     "fantasmas_detalle": [
       {
         "sku": "MP-0167",
@@ -520,9 +520,9 @@
         "sku": "MP-0001",
         "descripcion": "Adhesivos calibre/ref 25",
         "categoria": "Adhesivos",
-        "saldo_sistema_kardex": -6648.5,
+        "saldo_sistema_kardex": -6657.5,
         "conteo_fisico_bodega": 7783.0,
-        "sobrante_en_piso": 14431.5,
+        "sobrante_en_piso": 14440.5,
         "costo_unitario": 299035.0
       },
       {
@@ -1043,9 +1043,9 @@
         "sku": "MP-0001",
         "descripcion": "Adhesivos calibre/ref 25",
         "categoria": "Adhesivos",
-        "saldo_sistema_kardex": -6648.5,
+        "saldo_sistema_kardex": -6657.5,
         "conteo_fisico_bodega": 7783.0,
-        "sobrante_en_piso": 14431.5,
+        "sobrante_en_piso": 14440.5,
         "costo_unitario": 299035.0
       },
       {
@@ -1543,7 +1543,7 @@
       "capa": "Capa 1",
       "modulo": "Kardex Relacional",
       "estado": "Completado",
-      "detalle": "16,309 movimientos transaccionales reconciliados."
+      "detalle": "16,312 movimientos transaccionales reconciliados."
     },
     {
       "capa": "Capa 2",

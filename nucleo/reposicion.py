@@ -24,9 +24,15 @@ def calcular_parametros_reposicion(df_abc, estado, z=1.645, co=80000.0, i_tasa=0
       4. Lote Económico de Compra (EOQ): EOQ = sqrt( (2 * D * S) / H )
          donde S = $80.000 COP y H = 0.25 * Cu (25% anual del costo unitario).
     """
+    if df_abc is None or len(df_abc) == 0:
+        return {
+            'df_parametros': pd.DataFrame(),
+            'total_evaluados': 0
+        }
+
     df = df_abc.copy()
-    oc = estado.get('ordenes_compra')
-    mm = estado.get('maestro_materiales')
+    oc = estado.get('ordenes_compra') if estado else None
+    mm = estado.get('maestro_materiales') if estado else None
     
     # 1. Lead Time Real promedio y desviación estándar por categoría (Auditoría de Proveedores)
     if oc is not None and len(oc) > 0:
@@ -62,7 +68,8 @@ def calcular_parametros_reposicion(df_abc, estado, z=1.645, co=80000.0, i_tasa=0
     df['ROP'] = np.round((df['consumo_diario_d'] * df['lead_time_usado']) + df['SS_95'])
     
     # 4. Lote Económico de Compra (EOQ) con S = $80.000 COP y H = 25% anual
-    df['EOQ'] = np.where(df['C_c'] > 0, np.round(np.sqrt((2 * df['demanda_anual_d'] * co) / df['C_c'])), 0)
+    demanda_pos = np.maximum(0.0, df['demanda_anual_d'])
+    df['EOQ'] = np.where((df['C_c'] > 0) & (demanda_pos > 0), np.round(np.sqrt((2 * demanda_pos * co) / df['C_c'])), 0)
     
     return {
         'df_parametros': df,

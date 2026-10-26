@@ -171,6 +171,12 @@ def registrar_decision(sku, accion, planeador="Planeador Compras E2", motivo="Re
     Slide 10: 'De la decisión: Cuántas aprobó y cuántas rechazó el humano (Si el sistema acierta)'.
     Slide 11: 'Qué decidió el humano en cada propuesta'.
     """
+    if not sku or not str(sku).strip():
+        return {
+            'status': 'error',
+            'mensaje': 'El parámetro SKU es obligatorio para registrar la decisión de compra.'
+        }
+        
     base_datos.inicializar_esquema()
     conn = base_datos.get_connection()
     cur = conn.cursor()
