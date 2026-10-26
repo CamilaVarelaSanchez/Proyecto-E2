@@ -1,5 +1,5 @@
 {
-  "id": "9a049397-ce7a-419e-ace9-ad830d07738e",
+  "id": "0f233eb8-b48c-4b11-9e1c-911f21c9af80",
   "status": "completado",
   "kpis": {
     "total_skus": 440,
@@ -38,549 +38,24 @@
       "unidad": "unidad",
       "clase_abc": "A",
       "stock_real": 5.0,
-      "punto_reorden_rop": 478.0,
-      "stock_seguridad_ss": 251.0,
+      "punto_reorden_rop": 406.0,
+      "stock_seguridad_ss": 179.0,
       "cantidad_sugerida_eoq": 124.0,
       "costo_unitario_cop": 151416.0,
       "inversion_estimada_cop": 18775584.0,
-      "riesgo_evitado_cop": 10800000.0,
       "lead_time_dias": 22,
       "dias_cobertura_remanente": 0,
-      "momento_emision": "Inmediato (Stock 5 ≤ ROP 478)",
       "fecha_sugerida_emision": "2026-10-25",
       "fecha_recepcion_estimada": "2026-11-16",
       "prioridad": "Alta",
-      "accion_sugerida": "Emitir Orden de Compra por 124 unidads ($18,775,584 COP)",
-      "justificacion_ejecutiva": "Se recomienda emitir de inmediato una orden de compra por 124 unidads de Empaque calibre/ref 15 (MP-0015), con una inversión proyectada de $18,775,584 COP. El inventario físico disponible (5 unidads) tocó el Punto de Reorden (478 unidads), dejando una cobertura crítica de apenas 0 días de consumo en planta. Esta adquisición mitiga un riesgo financiero estimado en $10,800,000 COP por concepto de interrupción de las líneas de ensamble de archivadores y estanterías ($450.000 COP/hora), asegurando la recepción estimada para el 2026-11-16 bajo un tiempo de entrega de 22 días.",
+      "accion_sugerida": "Emitir Orden de Compra por 124 unidads",
+      "riesgo_mitigado": "Prevención de parada de línea de producción ($450.000 COP/hora)",
+      "justificacion_ejecutiva": "Se recomienda emitir de inmediato una orden de compra por 124 unidads de Empaque calibre/ref 15 (MP-0015). El inventario físico registrado (5 unidads) se encuentra por debajo del Punto de Reorden (406 unidads), registrando una cobertura actual estimada en 0 días. La recomendación se sustenta en una demanda anual proyectada de 3,665 unidads derivada del plan maestro, un Stock de Seguridad amortiguador de 179 unidads para un nivel de servicio del 95% y un tiempo de entrega del proveedor de 22 días. Esta compra previene riesgos de desabastecimiento en la línea de ensamble y sobrecostos por parada operativa.",
       "estado_decision": "PENDIENTE"
     }
   ],
   "criterio_parada_activado": true,
   "mensaje_parada": "Requiere supervisión y confirmación del planeador de compras antes de emitir órdenes.",
-  "modulo_reconciliacion_inventario_eri": {
-    "eri_global_pct": 70.71,
-    "meta_world_class_pct": 95.0,
-    "total_auditados": 420,
-    "concordantes": 297,
-    "total_fantasmas": 24,
-    "total_desfases": 99,
-    "impacto_financiero_fantasmas_cop": 2580111357.0,
-    "impacto_financiero_total_cop": 48609068856.2,
-    "fantasmas_detalle": [
-      {
-        "sku": "MP-0167",
-        "descripcion": "Correderas calibre/ref 34",
-        "categoria": "Correderas",
-        "saldo_sistema_kardex": 469.0,
-        "conteo_fisico_bodega": 421.0,
-        "faltante_en_piso": 48.0,
-        "impacto_cop": 624720.0,
-        "costo_unitario": 13015.0
-      },
-      {
-        "sku": "MP-0012",
-        "descripcion": "Tubería calibre/ref 22",
-        "categoria": "Tubería",
-        "saldo_sistema_kardex": 6259.6,
-        "conteo_fisico_bodega": 5091.0,
-        "faltante_en_piso": 1168.6,
-        "impacto_cop": 304262539.0,
-        "costo_unitario": 260365.0
-      },
-      {
-        "sku": "MP-0353",
-        "descripcion": "Correderas calibre/ref 25",
-        "categoria": "Correderas",
-        "saldo_sistema_kardex": 584.0,
-        "conteo_fisico_bodega": 514.0,
-        "faltante_en_piso": 70.0,
-        "impacto_cop": 746690.0,
-        "costo_unitario": 10667.0
-      },
-      {
-        "sku": "MP-0027",
-        "descripcion": "Pintura calibre/ref 17",
-        "categoria": "Pintura",
-        "saldo_sistema_kardex": 2961.4,
-        "conteo_fisico_bodega": 2790.0,
-        "faltante_en_piso": 171.4,
-        "impacto_cop": 30710423.6,
-        "costo_unitario": 179174.0
-      },
-      {
-        "sku": "MP-0024",
-        "descripcion": "Vidrio calibre/ref 33",
-        "categoria": "Vidrio",
-        "saldo_sistema_kardex": 7799.6,
-        "conteo_fisico_bodega": 6069.0,
-        "faltante_en_piso": 1730.6,
-        "impacto_cop": 387048690.0,
-        "costo_unitario": 223650.0
-      },
-      {
-        "sku": "MP-0010",
-        "descripcion": "Pintura calibre/ref 33",
-        "categoria": "Pintura",
-        "saldo_sistema_kardex": 14111.7,
-        "conteo_fisico_bodega": 12903.0,
-        "faltante_en_piso": 1208.7,
-        "impacto_cop": 296108534.7,
-        "costo_unitario": 244981.0
-      },
-      {
-        "sku": "MP-0377",
-        "descripcion": "Empaque calibre/ref 37",
-        "categoria": "Empaque",
-        "saldo_sistema_kardex": 416.0,
-        "conteo_fisico_bodega": 394.0,
-        "faltante_en_piso": 22.0,
-        "impacto_cop": 128766.0,
-        "costo_unitario": 5853.0
-      },
-      {
-        "sku": "MP-0253",
-        "descripcion": "Tubería calibre/ref 5",
-        "categoria": "Tubería",
-        "saldo_sistema_kardex": 387.0,
-        "conteo_fisico_bodega": 309.0,
-        "faltante_en_piso": 78.0,
-        "impacto_cop": 729768.0,
-        "costo_unitario": 9356.0
-      },
-      {
-        "sku": "MP-0022",
-        "descripcion": "Correderas calibre/ref 1",
-        "categoria": "Correderas",
-        "saldo_sistema_kardex": 8628.6,
-        "conteo_fisico_bodega": 7158.0,
-        "faltante_en_piso": 1470.6,
-        "impacto_cop": 254587330.8,
-        "costo_unitario": 173118.0
-      },
-      {
-        "sku": "MP-0014",
-        "descripcion": "Vidrio calibre/ref 37",
-        "categoria": "Vidrio",
-        "saldo_sistema_kardex": 12333.3,
-        "conteo_fisico_bodega": 11404.0,
-        "faltante_en_piso": 929.3,
-        "impacto_cop": 218016567.9,
-        "costo_unitario": 234603.0
-      },
-      {
-        "sku": "MP-0398",
-        "descripcion": "Correderas calibre/ref 39",
-        "categoria": "Correderas",
-        "saldo_sistema_kardex": 491.0,
-        "conteo_fisico_bodega": 431.0,
-        "faltante_en_piso": 60.0,
-        "impacto_cop": 39180.0,
-        "costo_unitario": 653.0
-      },
-      {
-        "sku": "MP-0240",
-        "descripcion": "Correderas calibre/ref 20",
-        "categoria": "Correderas",
-        "saldo_sistema_kardex": 623.0,
-        "conteo_fisico_bodega": 561.0,
-        "faltante_en_piso": 62.0,
-        "impacto_cop": 389608.0,
-        "costo_unitario": 6284.0
-      },
-      {
-        "sku": "MP-0248",
-        "descripcion": "Tornillería calibre/ref 23",
-        "categoria": "Tornillería",
-        "saldo_sistema_kardex": 383.0,
-        "conteo_fisico_bodega": 317.0,
-        "faltante_en_piso": 66.0,
-        "impacto_cop": 56760.0,
-        "costo_unitario": 860.0
-      },
-      {
-        "sku": "MP-0310",
-        "descripcion": "Pintura calibre/ref 7",
-        "categoria": "Pintura",
-        "saldo_sistema_kardex": 615.0,
-        "conteo_fisico_bodega": 545.0,
-        "faltante_en_piso": 70.0,
-        "impacto_cop": 780220.0,
-        "costo_unitario": 11146.0
-      },
-      {
-        "sku": "MP-0015",
-        "descripcion": "Empaque calibre/ref 15",
-        "categoria": "Empaque",
-        "saldo_sistema_kardex": 810.9,
-        "conteo_fisico_bodega": 5.0,
-        "faltante_en_piso": 805.9,
-        "impacto_cop": 122026154.4,
-        "costo_unitario": 151416.0
-      },
-      {
-        "sku": "MP-0026",
-        "descripcion": "Empaque calibre/ref 21",
-        "categoria": "Empaque",
-        "saldo_sistema_kardex": 4761.8,
-        "conteo_fisico_bodega": 3993.0,
-        "faltante_en_piso": 768.8,
-        "impacto_cop": 302256795.2,
-        "costo_unitario": 393154.0
-      },
-      {
-        "sku": "MP-0287",
-        "descripcion": "Lámina calibre/ref 3",
-        "categoria": "Lámina",
-        "saldo_sistema_kardex": 296.0,
-        "conteo_fisico_bodega": 280.0,
-        "faltante_en_piso": 16.0,
-        "impacto_cop": 214368.0,
-        "costo_unitario": 13398.0
-      },
-      {
-        "sku": "MP-0004",
-        "descripcion": "Vidrio calibre/ref 33",
-        "categoria": "Vidrio",
-        "saldo_sistema_kardex": 3916.8,
-        "conteo_fisico_bodega": 3229.0,
-        "faltante_en_piso": 687.8,
-        "impacto_cop": 264896540.8,
-        "costo_unitario": 385136.0
-      },
-      {
-        "sku": "MP-0005",
-        "descripcion": "Adhesivos calibre/ref 2",
-        "categoria": "Adhesivos",
-        "saldo_sistema_kardex": 11057.8,
-        "conteo_fisico_bodega": 9902.0,
-        "faltante_en_piso": 1155.8,
-        "impacto_cop": 163298358.8,
-        "costo_unitario": 141286.0
-      },
-      {
-        "sku": "MP-0154",
-        "descripcion": "Adhesivos calibre/ref 5",
-        "categoria": "Adhesivos",
-        "saldo_sistema_kardex": 351.0,
-        "conteo_fisico_bodega": 331.0,
-        "faltante_en_piso": 20.0,
-        "impacto_cop": 285160.0,
-        "costo_unitario": 14258.0
-      },
-      {
-        "sku": "MP-0404",
-        "descripcion": "Correderas calibre/ref 5",
-        "categoria": "Correderas",
-        "saldo_sistema_kardex": 617.0,
-        "conteo_fisico_bodega": 573.0,
-        "faltante_en_piso": 44.0,
-        "impacto_cop": 256564.0,
-        "costo_unitario": 5831.0
-      },
-      {
-        "sku": "MP-0151",
-        "descripcion": "Lámina calibre/ref 34",
-        "categoria": "Lámina",
-        "saldo_sistema_kardex": 545.0,
-        "conteo_fisico_bodega": 499.0,
-        "faltante_en_piso": 46.0,
-        "impacto_cop": 671416.0,
-        "costo_unitario": 14596.0
-      },
-      {
-        "sku": "MP-0009",
-        "descripcion": "Empaque calibre/ref 27",
-        "categoria": "Empaque",
-        "saldo_sistema_kardex": 13158.3,
-        "conteo_fisico_bodega": 12257.0,
-        "faltante_en_piso": 901.3,
-        "impacto_cop": 231405169.8,
-        "costo_unitario": 256746.0
-      },
-      {
-        "sku": "MP-0250",
-        "descripcion": "Correderas calibre/ref 9",
-        "categoria": "Correderas",
-        "saldo_sistema_kardex": 242.0,
-        "conteo_fisico_bodega": 198.0,
-        "faltante_en_piso": 44.0,
-        "impacto_cop": 571032.0,
-        "costo_unitario": 12978.0
-      }
-    ],
-    "desfases_detalle": [
-      {
-        "sku": "MP-0142",
-        "descripcion": "Lámina calibre/ref 21",
-        "categoria": "Lámina",
-        "saldo_sistema_kardex": -6020.8,
-        "conteo_fisico_bodega": 7009.0,
-        "sobrante_en_piso": 13029.8,
-        "costo_unitario": 34292.0
-      },
-      {
-        "sku": "MP-0268",
-        "descripcion": "Vidrio calibre/ref 22",
-        "categoria": "Vidrio",
-        "saldo_sistema_kardex": -2687.7,
-        "conteo_fisico_bodega": 2931.0,
-        "sobrante_en_piso": 5618.7,
-        "costo_unitario": 12459.0
-      },
-      {
-        "sku": "MP-0132",
-        "descripcion": "Lámina calibre/ref 4",
-        "categoria": "Lámina",
-        "saldo_sistema_kardex": -9645.6,
-        "conteo_fisico_bodega": 10572.0,
-        "sobrante_en_piso": 20217.6,
-        "costo_unitario": 32995.0
-      },
-      {
-        "sku": "MP-0193",
-        "descripcion": "Correderas calibre/ref 15",
-        "categoria": "Correderas",
-        "saldo_sistema_kardex": -5567.0,
-        "conteo_fisico_bodega": 6272.0,
-        "sobrante_en_piso": 11839.0,
-        "costo_unitario": 2415.0
-      },
-      {
-        "sku": "MP-0340",
-        "descripcion": "Vidrio calibre/ref 34",
-        "categoria": "Vidrio",
-        "saldo_sistema_kardex": -4057.6,
-        "conteo_fisico_bodega": 4461.0,
-        "sobrante_en_piso": 8518.6,
-        "costo_unitario": 2769.0
-      },
-      {
-        "sku": "MP-0181",
-        "descripcion": "Pintura calibre/ref 37",
-        "categoria": "Pintura",
-        "saldo_sistema_kardex": -7948.4,
-        "conteo_fisico_bodega": 8611.0,
-        "sobrante_en_piso": 16559.4,
-        "costo_unitario": 3549.0
-      },
-      {
-        "sku": "MP-0157",
-        "descripcion": "Tornillería calibre/ref 30",
-        "categoria": "Tornillería",
-        "saldo_sistema_kardex": -15526.2,
-        "conteo_fisico_bodega": 17264.0,
-        "sobrante_en_piso": 32790.2,
-        "costo_unitario": 2791.0
-      },
-      {
-        "sku": "MP-0080",
-        "descripcion": "Adhesivos calibre/ref 18",
-        "categoria": "Adhesivos",
-        "saldo_sistema_kardex": -3748.9,
-        "conteo_fisico_bodega": 4184.0,
-        "sobrante_en_piso": 7932.9,
-        "costo_unitario": 39838.0
-      },
-      {
-        "sku": "MP-0238",
-        "descripcion": "Pintura calibre/ref 4",
-        "categoria": "Pintura",
-        "saldo_sistema_kardex": -6295.5,
-        "conteo_fisico_bodega": 6803.0,
-        "sobrante_en_piso": 13098.5,
-        "costo_unitario": 12403.0
-      },
-      {
-        "sku": "MP-0325",
-        "descripcion": "Tubería calibre/ref 8",
-        "categoria": "Tubería",
-        "saldo_sistema_kardex": -6795.4,
-        "conteo_fisico_bodega": 7124.0,
-        "sobrante_en_piso": 13919.4,
-        "costo_unitario": 431.0
-      },
-      {
-        "sku": "MP-0393",
-        "descripcion": "Empaque calibre/ref 3",
-        "categoria": "Empaque",
-        "saldo_sistema_kardex": -2084.7,
-        "conteo_fisico_bodega": 2236.0,
-        "sobrante_en_piso": 4320.7,
-        "costo_unitario": 9553.0
-      },
-      {
-        "sku": "MP-0094",
-        "descripcion": "Lámina calibre/ref 36",
-        "categoria": "Lámina",
-        "saldo_sistema_kardex": -4363.5,
-        "conteo_fisico_bodega": 5149.0,
-        "sobrante_en_piso": 9512.5,
-        "costo_unitario": 40900.0
-      },
-      {
-        "sku": "MP-0197",
-        "descripcion": "Tornillería calibre/ref 25",
-        "categoria": "Tornillería",
-        "saldo_sistema_kardex": -8382.2,
-        "conteo_fisico_bodega": 9525.0,
-        "sobrante_en_piso": 17907.2,
-        "costo_unitario": 3935.0
-      },
-      {
-        "sku": "MP-0077",
-        "descripcion": "Tubería calibre/ref 26",
-        "categoria": "Tubería",
-        "saldo_sistema_kardex": -8927.2,
-        "conteo_fisico_bodega": 9710.0,
-        "sobrante_en_piso": 18637.2,
-        "costo_unitario": 66191.0
-      },
-      {
-        "sku": "MP-0217",
-        "descripcion": "Adhesivos calibre/ref 34",
-        "categoria": "Adhesivos",
-        "saldo_sistema_kardex": -5808.2,
-        "conteo_fisico_bodega": 6174.0,
-        "sobrante_en_piso": 11982.2,
-        "costo_unitario": 7822.0
-      },
-      {
-        "sku": "MP-0111",
-        "descripcion": "Adhesivos calibre/ref 34",
-        "categoria": "Adhesivos",
-        "saldo_sistema_kardex": -8215.8,
-        "conteo_fisico_bodega": 9296.0,
-        "sobrante_en_piso": 17511.8,
-        "costo_unitario": 71165.0
-      },
-      {
-        "sku": "MP-0330",
-        "descripcion": "Tornillería calibre/ref 30",
-        "categoria": "Tornillería",
-        "saldo_sistema_kardex": -2459.3,
-        "conteo_fisico_bodega": 2687.0,
-        "sobrante_en_piso": 5146.3,
-        "costo_unitario": 8021.0
-      },
-      {
-        "sku": "MP-0008",
-        "descripcion": "Correderas calibre/ref 39",
-        "categoria": "Correderas",
-        "saldo_sistema_kardex": -9328.4,
-        "conteo_fisico_bodega": 10995.0,
-        "sobrante_en_piso": 20323.4,
-        "costo_unitario": 310890.0
-      },
-      {
-        "sku": "MP-0131",
-        "descripcion": "Tornillería calibre/ref 8",
-        "categoria": "Tornillería",
-        "saldo_sistema_kardex": -425.0,
-        "conteo_fisico_bodega": 760.0,
-        "sobrante_en_piso": 1185.0,
-        "costo_unitario": 37576.0
-      },
-      {
-        "sku": "MP-0051",
-        "descripcion": "Correderas calibre/ref 32",
-        "categoria": "Correderas",
-        "saldo_sistema_kardex": -14384.0,
-        "conteo_fisico_bodega": 15501.0,
-        "sobrante_en_piso": 29885.0,
-        "costo_unitario": 68499.0
-      },
-      {
-        "sku": "MP-0137",
-        "descripcion": "Vidrio calibre/ref 12",
-        "categoria": "Vidrio",
-        "saldo_sistema_kardex": -3769.9,
-        "conteo_fisico_bodega": 4370.0,
-        "sobrante_en_piso": 8139.9,
-        "costo_unitario": 39144.0
-      },
-      {
-        "sku": "MP-0071",
-        "descripcion": "Pintura calibre/ref 10",
-        "categoria": "Pintura",
-        "saldo_sistema_kardex": -4776.1,
-        "conteo_fisico_bodega": 5566.0,
-        "sobrante_en_piso": 10342.1,
-        "costo_unitario": 64609.0
-      },
-      {
-        "sku": "MP-0020",
-        "descripcion": "Lámina calibre/ref 1",
-        "categoria": "Lámina",
-        "saldo_sistema_kardex": -3854.0,
-        "conteo_fisico_bodega": 5310.0,
-        "sobrante_en_piso": 9164.0,
-        "costo_unitario": 248445.0
-      },
-      {
-        "sku": "MP-0001",
-        "descripcion": "Adhesivos calibre/ref 25",
-        "categoria": "Adhesivos",
-        "saldo_sistema_kardex": -6657.5,
-        "conteo_fisico_bodega": 7783.0,
-        "sobrante_en_piso": 14440.5,
-        "costo_unitario": 299035.0
-      },
-      {
-        "sku": "MP-0085",
-        "descripcion": "Empaque calibre/ref 20",
-        "categoria": "Empaque",
-        "saldo_sistema_kardex": -8546.2,
-        "conteo_fisico_bodega": 9043.0,
-        "sobrante_en_piso": 17589.2,
-        "costo_unitario": 42369.0
-      },
-      {
-        "sku": "MP-0309",
-        "descripcion": "Tubería calibre/ref 3",
-        "categoria": "Tubería",
-        "saldo_sistema_kardex": -7142.1,
-        "conteo_fisico_bodega": 7852.0,
-        "sobrante_en_piso": 14994.1,
-        "costo_unitario": 6190.0
-      },
-      {
-        "sku": "MP-0073",
-        "descripcion": "Empaque calibre/ref 3",
-        "categoria": "Empaque",
-        "saldo_sistema_kardex": -8999.7,
-        "conteo_fisico_bodega": 9913.0,
-        "sobrante_en_piso": 18912.7,
-        "costo_unitario": 45806.0
-      },
-      {
-        "sku": "MP-0113",
-        "descripcion": "Adhesivos calibre/ref 5",
-        "categoria": "Adhesivos",
-        "saldo_sistema_kardex": 612.0,
-        "conteo_fisico_bodega": 659.0,
-        "sobrante_en_piso": 47.0,
-        "costo_unitario": 60878.0
-      },
-      {
-        "sku": "MP-0293",
-        "descripcion": "Lámina calibre/ref 15",
-        "categoria": "Lámina",
-        "saldo_sistema_kardex": -6987.0,
-        "conteo_fisico_bodega": 7520.0,
-        "sobrante_en_piso": 14507.0,
-        "costo_unitario": 8453.0
-      },
-      {
-        "sku": "MP-0117",
-        "descripcion": "Pintura calibre/ref 22",
-        "categoria": "Pintura",
-        "saldo_sistema_kardex": -6395.1,
-        "conteo_fisico_bodega": 7175.0,
-        "sobrante_en_piso": 13570.1,
-        "costo_unitario": 19690.0
-      }
-    ]
-  },
   "queja_1_auditoria_inventario": {
     "eri_global_pct": 70.71,
     "meta_world_class_pct": 95.0,
@@ -1104,220 +579,6 @@
       }
     ]
   },
-  "modulo_abastecimiento_demanda_dependiente_bom": {
-    "resumen_analitico": "En meses pico la demanda de Archivadores (+106%) y Estanterías (+87%) satura la cobertura fija del ERP antiguo, requiriendo dimensionamiento dinámico con matriz BOM.",
-    "productos_criticos": [
-      {
-        "linea": "Archivadores (ARC)",
-        "salto_demanda": "De 126 a 501 u/mes (+106.1%)",
-        "volatilidad_cv": "0.484 (Alta volatilidad)",
-        "impacto": "Hasta 7.76 láminas y 6.46 correderas por unidad"
-      },
-      {
-        "linea": "Estanterías (EST)",
-        "salto_demanda": "De 180 a 444 u/mes (+87.2%)",
-        "volatilidad_cv": "0.414 (Alta volatilidad)",
-        "impacto": "Alto consumo de pintura electrostática y perfiles"
-      }
-    ],
-    "insumos_criticos_pico": [
-      {
-        "sku": "MP-0229",
-        "descripcion": "Empaque calibre/ref 9",
-        "categoria": "Empaque",
-        "demanda_mes_pico": 1787.5,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 1.7,
-        "nuevo_rop_dinamico": 1136,
-        "nuevo_ss_dinamico": 627,
-        "lote_eoq_sugerido": 841,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0202",
-        "descripcion": "Pintura calibre/ref 34",
-        "categoria": "Pintura",
-        "demanda_mes_pico": 1745.0,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 1.7,
-        "nuevo_rop_dinamico": 1055,
-        "nuevo_ss_dinamico": 584,
-        "lote_eoq_sugerido": 1311,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0010",
-        "descripcion": "Pintura calibre/ref 33",
-        "categoria": "Pintura",
-        "demanda_mes_pico": 1431.4,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 2.1,
-        "nuevo_rop_dinamico": 865,
-        "nuevo_ss_dinamico": 479,
-        "lote_eoq_sugerido": 131,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0001",
-        "descripcion": "Adhesivos calibre/ref 25",
-        "categoria": "Adhesivos",
-        "demanda_mes_pico": 1382.0,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 2.2,
-        "nuevo_rop_dinamico": 1108,
-        "nuevo_ss_dinamico": 606,
-        "lote_eoq_sugerido": 125,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0369",
-        "descripcion": "Correderas calibre/ref 12",
-        "categoria": "Correderas",
-        "demanda_mes_pico": 1343.7,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 2.2,
-        "nuevo_rop_dinamico": 942,
-        "nuevo_ss_dinamico": 513,
-        "lote_eoq_sugerido": 727,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0016",
-        "descripcion": "Adhesivos calibre/ref 24",
-        "categoria": "Adhesivos",
-        "demanda_mes_pico": 1221.0,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 2.5,
-        "nuevo_rop_dinamico": 1309,
-        "nuevo_ss_dinamico": 662,
-        "lote_eoq_sugerido": 206,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0120",
-        "descripcion": "Pintura calibre/ref 2",
-        "categoria": "Pintura",
-        "demanda_mes_pico": 1154.4,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 2.6,
-        "nuevo_rop_dinamico": 767,
-        "nuevo_ss_dinamico": 431,
-        "lote_eoq_sugerido": 253,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0150",
-        "descripcion": "Correderas calibre/ref 9",
-        "categoria": "Correderas",
-        "demanda_mes_pico": 1137.9,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 2.6,
-        "nuevo_rop_dinamico": 726,
-        "nuevo_ss_dinamico": 389,
-        "lote_eoq_sugerido": 288,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0014",
-        "descripcion": "Vidrio calibre/ref 37",
-        "categoria": "Vidrio",
-        "demanda_mes_pico": 1123.0,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 2.7,
-        "nuevo_rop_dinamico": 780,
-        "nuevo_ss_dinamico": 447,
-        "lote_eoq_sugerido": 127,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0132",
-        "descripcion": "Lámina calibre/ref 4",
-        "categoria": "Lámina",
-        "demanda_mes_pico": 923.4,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 3.2,
-        "nuevo_rop_dinamico": 795,
-        "nuevo_ss_dinamico": 395,
-        "lote_eoq_sugerido": 369,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0182",
-        "descripcion": "Vidrio calibre/ref 13",
-        "categoria": "Vidrio",
-        "demanda_mes_pico": 904.8,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 3.3,
-        "nuevo_rop_dinamico": 1118,
-        "nuevo_ss_dinamico": 609,
-        "lote_eoq_sugerido": 884,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0373",
-        "descripcion": "Tornillería calibre/ref 19",
-        "categoria": "Tornillería",
-        "demanda_mes_pico": 874.8,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 3.4,
-        "nuevo_rop_dinamico": 1193,
-        "nuevo_ss_dinamico": 568,
-        "lote_eoq_sugerido": 721,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0128",
-        "descripcion": "Pintura calibre/ref 15",
-        "categoria": "Pintura",
-        "demanda_mes_pico": 819.5,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 3.7,
-        "nuevo_rop_dinamico": 1198,
-        "nuevo_ss_dinamico": 608,
-        "lote_eoq_sugerido": 337,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0002",
-        "descripcion": "Adhesivos calibre/ref 23",
-        "categoria": "Adhesivos",
-        "demanda_mes_pico": 813.1,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 3.7,
-        "nuevo_rop_dinamico": 555,
-        "nuevo_ss_dinamico": 299,
-        "lote_eoq_sugerido": 156,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      },
-      {
-        "sku": "MP-0153",
-        "descripcion": "Correderas calibre/ref 31",
-        "categoria": "Correderas",
-        "demanda_mes_pico": 801.9,
-        "stock_max_erp_antiguo": 500,
-        "stock_min_erp_antiguo": 100,
-        "cobertura_dias_erp_antiguo": 3.7,
-        "nuevo_rop_dinamico": 512,
-        "nuevo_ss_dinamico": 274,
-        "lote_eoq_sugerido": 402,
-        "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
-      }
-    ]
-  },
   "queja_2_explosion_demanda_bom": {
     "resumen_queja": "En meses pico la demanda de Archivadores (+106%) y Estanterías (+87%) saturó el stock máximo fijo de 500 unids del ERP antiguo.",
     "productos_criticos": [
@@ -1343,8 +604,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 1.7,
-        "nuevo_rop_dinamico": 1136,
-        "nuevo_ss_dinamico": 627,
+        "nuevo_rop_dinamico": 997,
+        "nuevo_ss_dinamico": 488,
         "lote_eoq_sugerido": 841,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1356,8 +617,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 1.7,
-        "nuevo_rop_dinamico": 1055,
-        "nuevo_ss_dinamico": 584,
+        "nuevo_rop_dinamico": 935,
+        "nuevo_ss_dinamico": 464,
         "lote_eoq_sugerido": 1311,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1369,8 +630,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 2.1,
-        "nuevo_rop_dinamico": 865,
-        "nuevo_ss_dinamico": 479,
+        "nuevo_rop_dinamico": 766,
+        "nuevo_ss_dinamico": 380,
         "lote_eoq_sugerido": 131,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1382,8 +643,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 2.2,
-        "nuevo_rop_dinamico": 1108,
-        "nuevo_ss_dinamico": 606,
+        "nuevo_rop_dinamico": 983,
+        "nuevo_ss_dinamico": 481,
         "lote_eoq_sugerido": 125,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1395,8 +656,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 2.2,
-        "nuevo_rop_dinamico": 942,
-        "nuevo_ss_dinamico": 513,
+        "nuevo_rop_dinamico": 854,
+        "nuevo_ss_dinamico": 425,
         "lote_eoq_sugerido": 727,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1408,8 +669,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 2.5,
-        "nuevo_rop_dinamico": 1309,
-        "nuevo_ss_dinamico": 662,
+        "nuevo_rop_dinamico": 1108,
+        "nuevo_ss_dinamico": 461,
         "lote_eoq_sugerido": 206,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1421,8 +682,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 2.6,
-        "nuevo_rop_dinamico": 767,
-        "nuevo_ss_dinamico": 431,
+        "nuevo_rop_dinamico": 684,
+        "nuevo_ss_dinamico": 348,
         "lote_eoq_sugerido": 253,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1434,8 +695,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 2.6,
-        "nuevo_rop_dinamico": 726,
-        "nuevo_ss_dinamico": 389,
+        "nuevo_rop_dinamico": 654,
+        "nuevo_ss_dinamico": 317,
         "lote_eoq_sugerido": 288,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1447,8 +708,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 2.7,
-        "nuevo_rop_dinamico": 780,
-        "nuevo_ss_dinamico": 447,
+        "nuevo_rop_dinamico": 686,
+        "nuevo_ss_dinamico": 353,
         "lote_eoq_sugerido": 127,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1460,8 +721,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 3.2,
-        "nuevo_rop_dinamico": 795,
-        "nuevo_ss_dinamico": 395,
+        "nuevo_rop_dinamico": 708,
+        "nuevo_ss_dinamico": 308,
         "lote_eoq_sugerido": 369,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1473,8 +734,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 3.3,
-        "nuevo_rop_dinamico": 1118,
-        "nuevo_ss_dinamico": 609,
+        "nuevo_rop_dinamico": 952,
+        "nuevo_ss_dinamico": 443,
         "lote_eoq_sugerido": 884,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1486,8 +747,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 3.4,
-        "nuevo_rop_dinamico": 1193,
-        "nuevo_ss_dinamico": 568,
+        "nuevo_rop_dinamico": 971,
+        "nuevo_ss_dinamico": 346,
         "lote_eoq_sugerido": 721,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1499,8 +760,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 3.7,
-        "nuevo_rop_dinamico": 1198,
-        "nuevo_ss_dinamico": 608,
+        "nuevo_rop_dinamico": 1005,
+        "nuevo_ss_dinamico": 415,
         "lote_eoq_sugerido": 337,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1512,8 +773,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 3.7,
-        "nuevo_rop_dinamico": 555,
-        "nuevo_ss_dinamico": 299,
+        "nuevo_rop_dinamico": 489,
+        "nuevo_ss_dinamico": 233,
         "lote_eoq_sugerido": 156,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       },
@@ -1525,8 +786,8 @@
         "stock_max_erp_antiguo": 500,
         "stock_min_erp_antiguo": 100,
         "cobertura_dias_erp_antiguo": 3.7,
-        "nuevo_rop_dinamico": 512,
-        "nuevo_ss_dinamico": 274,
+        "nuevo_rop_dinamico": 461,
+        "nuevo_ss_dinamico": 223,
         "lote_eoq_sugerido": 402,
         "diagnostico": "Pico superaba el stock máximo antiguo en 3.5x"
       }
