@@ -437,11 +437,12 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             cur.execute("SELECT 1 FROM movimientos_inventarios WHERE id_movimiento = ?;", (id_mov,))
             if cur.fetchone() is not None:
                 filas_omitidas_duplicadas += 1
+                cant_mov_disp = int(cantidad) if float(cantidad).is_integer() else cantidad
                 trazabilidad_filas.append({
                     'fila': num_fila, 'identificador': f"{sku} / {doc}", 'estado': 'OMITIDA_EXISTENTE',
                     'motivo': 'Registro idéntico ya existente en Kardex (Idempotencia)',
                     'detalle': f"La transacción {id_mov} ya fue asentada previamente. No se duplica ni altera saldos.",
-                    'valor_original': f"{fecha_norm} | {cantidad} unids"
+                    'valor_original': f"{fecha_norm} | {cant_mov_disp} unidades"
                 })
             else:
                 cur.execute("""
@@ -449,10 +450,11 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
                 """, (id_mov, fecha_norm, sku, tipo_mov, cantidad, doc, bodega, usr))
                 filas_insertadas += 1
+                cant_mov_disp = int(cantidad) if float(cantidad).is_integer() else cantidad
                 trazabilidad_filas.append({
                     'fila': num_fila, 'identificador': f"{sku} / {doc}", 'estado': 'INSERTADA',
-                    'motivo': 'Conforme', 'detalle': f"Movimiento de {tipo_mov} ({cantidad} unids) registrado en Kardex.",
-                    'valor_original': f"{fecha_norm} | {cantidad} unids"
+                    'motivo': 'Conforme', 'detalle': f"Movimiento de {tipo_mov} ({cant_mov_disp} unidades) registrado en Kardex.",
+                    'valor_original': f"{fecha_norm} | {cant_mov_disp} unidades"
                 })
 
         conn.commit()
@@ -476,6 +478,16 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             costo_raw = row.get('costo_unitario', 0.0)
             prov = str(row.get('proveedor', 'Proveedor E2')).strip()
             
+            # Formatear identificador limpio sin duplicación de prefijos (ej. OC-9035 en lugar de OC OC-9035)
+            if oc.startswith("OC-"):
+                id_oc = oc
+            elif oc.startswith("OC "):
+                id_oc = oc.replace("OC ", "OC-")
+            elif oc.startswith("OC"):
+                id_oc = f"OC-{oc[2:].lstrip('- ')}"
+            else:
+                id_oc = f"OC-{oc}"
+
             if not oc:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
@@ -488,7 +500,7 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             if not sku:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
-                    'fila': num_fila, 'identificador': f"OC {oc}", 'estado': 'RECHAZADA',
+                    'fila': num_fila, 'identificador': id_oc, 'estado': 'RECHAZADA',
                     'motivo': 'Campo obligatorio nulo (SKU)', 'detalle': "El código SKU es obligatorio en la orden de compra.",
                     'valor_original': ''
                 })
@@ -499,7 +511,7 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             if cur.fetchone() is None:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
-                    'fila': num_fila, 'identificador': f"OC {oc} / {sku}", 'estado': 'RECHAZADA',
+                    'fila': num_fila, 'identificador': f"{id_oc} / {sku}", 'estado': 'RECHAZADA',
                     'motivo': 'Inconsistencia referencial (SKU huérfano)',
                     'detalle': f"El SKU '{sku}' no existe en el catálogo maestro de materiales.",
                     'valor_original': sku
@@ -510,7 +522,7 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             if err_fp:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
-                    'fila': num_fila, 'identificador': f"OC {oc} / {sku}", 'estado': 'RECHAZADA',
+                    'fila': num_fila, 'identificador': f"{id_oc} / {sku}", 'estado': 'RECHAZADA',
                     'motivo': 'Fecha de pedido inválida', 'detalle': err_fp, 'valor_original': str(fp_raw)
                 })
                 continue
@@ -519,7 +531,7 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             if err_fr:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
-                    'fila': num_fila, 'identificador': f"OC {oc} / {sku}", 'estado': 'RECHAZADA',
+                    'fila': num_fila, 'identificador': f"{id_oc} / {sku}", 'estado': 'RECHAZADA',
                     'motivo': 'Fecha de recepción inválida', 'detalle': err_fr, 'valor_original': str(fr_raw)
                 })
                 continue
@@ -532,7 +544,7 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             except Exception as e:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
-                    'fila': num_fila, 'identificador': f"OC {oc} / {sku}", 'estado': 'RECHAZADA',
+                    'fila': num_fila, 'identificador': f"{id_oc} / {sku}", 'estado': 'RECHAZADA',
                     'motivo': 'Cantidad o costo inválido', 'detalle': str(e), 'valor_original': str(cant_raw)
                 })
                 continue
@@ -541,9 +553,9 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             if oc in hashes_vistos_en_archivo:
                 filas_omitidas_duplicadas += 1
                 trazabilidad_filas.append({
-                    'fila': num_fila, 'identificador': f"OC {oc}", 'estado': 'OMITIDA_DUPLICADA',
+                    'fila': num_fila, 'identificador': id_oc, 'estado': 'OMITIDA_DUPLICADA',
                     'motivo': 'Orden de compra duplicada en el mismo lote CSV',
-                    'detalle': f"La orden {oc} se repite en este archivo.", 'valor_original': oc
+                    'detalle': f"La orden {id_oc} se repite en este archivo.", 'valor_original': oc
                 })
                 continue
             hashes_vistos_en_archivo.add(oc)
@@ -551,13 +563,15 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             cur.execute("SELECT cantidad, costo_unitario, estado FROM ordenes_compra WHERE orden_compra = ?;", (oc,))
             fila_ant = cur.fetchone()
             
+            cant_display = int(cant) if cant.is_integer() else cant
+
             if fila_ant is not None:
                 if fila_ant[0] == cant and fila_ant[1] == costo:
                     filas_omitidas_duplicadas += 1
                     trazabilidad_filas.append({
-                        'fila': num_fila, 'identificador': f"OC {oc}", 'estado': 'OMITIDA_EXISTENTE',
-                        'motivo': 'Orden de Compra idéntica ya existente (Idempotencia)',
-                        'detalle': f"La orden {oc} ya está asentada sin cambios.", 'valor_original': oc
+                        'fila': num_fila, 'identificador': id_oc, 'estado': 'OMITIDA_EXISTENTE',
+                        'motivo': 'Orden de compra idéntica ya existente (Idempotencia)',
+                        'detalle': f"La orden {id_oc} ya está asentada sin cambios.", 'valor_original': oc
                     })
                 else:
                     # UPSERT: ON CONFLICT (orden_compra) DO UPDATE
@@ -568,9 +582,9 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                     """, (sku, prov, cant, fp_norm, fr_norm, costo, oc))
                     filas_actualizadas += 1
                     trazabilidad_filas.append({
-                        'fila': num_fila, 'identificador': f"OC {oc}", 'estado': 'ACTUALIZADA',
-                        'motivo': 'Orden de Compra actualizada (UPSERT)',
-                        'detalle': f"La orden {oc} fue actualizada con nueva cantidad/costo ({cant} unids).", 'valor_original': oc
+                        'fila': num_fila, 'identificador': id_oc, 'estado': 'ACTUALIZADA',
+                        'motivo': 'Orden de compra actualizada (UPSERT)',
+                        'detalle': f"La orden {id_oc} fue actualizada con nueva cantidad/costo ({cant_display} unidades).", 'valor_original': oc
                     })
             else:
                 cur.execute("""
@@ -579,8 +593,8 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 """, (oc, sku, prov, cant, fp_norm, fr_norm, costo))
                 filas_insertadas += 1
                 trazabilidad_filas.append({
-                    'fila': num_fila, 'identificador': f"OC {oc}", 'estado': 'INSERTADA',
-                    'motivo': 'Conforme', 'detalle': f"Orden de compra por {cant} unidades asentada exitosamente.",
+                    'fila': num_fila, 'identificador': id_oc, 'estado': 'INSERTADA',
+                    'motivo': 'Conforme', 'detalle': f"Orden de compra por {cant_display} unidades asentada exitosamente.",
                     'valor_original': oc
                 })
 
@@ -669,8 +683,8 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                     trazabilidad_filas.append({
                         'fila': num_fila, 'identificador': sku, 'estado': 'OMITIDA_EXISTENTE',
                         'motivo': 'Conteo físico idéntico ya registrado (Idempotencia)',
-                        'detalle': f"Stock {stock_contado} unidades sin variación respecto a la base.",
-                        'valor_original': str(stock_contado)
+                        'detalle': f"Stock {int(stock_contado) if stock_contado.is_integer() else stock_contado} unidades sin variación respecto a la base.",
+                        'valor_original': str(int(stock_contado) if stock_contado.is_integer() else stock_contado)
                     })
                 else:
                     # UPSERT: ON CONFLICT(sku) DO UPDATE
@@ -683,8 +697,8 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                     trazabilidad_filas.append({
                         'fila': num_fila, 'identificador': sku, 'estado': 'ACTUALIZADA',
                         'motivo': 'Conteo físico actualizado (UPSERT)',
-                        'detalle': f"Stock físico actualizado de {fila_ant[0]} a {stock_contado} unidades.",
-                        'valor_original': str(stock_contado)
+                        'detalle': f"Stock físico actualizado de {int(fila_ant[0]) if float(fila_ant[0]).is_integer() else fila_ant[0]} a {int(stock_contado) if stock_contado.is_integer() else stock_contado} unidades.",
+                        'valor_original': str(int(stock_contado) if stock_contado.is_integer() else stock_contado)
                     })
             else:
                 # INSERT nuevo
@@ -696,8 +710,8 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 trazabilidad_filas.append({
                     'fila': num_fila, 'identificador': sku, 'estado': 'INSERTADA',
                     'motivo': 'Conforme',
-                    'detalle': f"Conteo físico asentado en {stock_contado} unidades.",
-                    'valor_original': str(stock_contado)
+                    'detalle': f"Conteo físico asentado en {int(stock_contado) if stock_contado.is_integer() else stock_contado} unidades.",
+                    'valor_original': str(int(stock_contado) if stock_contado.is_integer() else stock_contado)
                 })
 
         conn.commit()
