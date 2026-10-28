@@ -13,6 +13,7 @@ import json
 import uuid
 import urllib.request
 import urllib.error
+from urllib.parse import quote, urlencode
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -44,12 +45,34 @@ ENV = load_env()
 SUPABASE_URL = ENV.get('SUPABASE_URL', 'https://wheclfavngzgmlhbojrd.supabase.co')
 API_KEY = ENV.get('SUPABASE_SERVICE_ROLE_KEY') or ENV.get('SUPABASE_ANON_KEY')
 
+def _mensaje_error_http(error):
+    cuerpo = error.read().decode('utf-8', errors='replace').strip()
+    try:
+        respuesta = json.loads(cuerpo)
+    except (json.JSONDecodeError, TypeError):
+        respuesta = None
+
+    if isinstance(respuesta, dict):
+        detalle = ' '.join(
+            str(respuesta[campo]).strip()
+            for campo in ('message', 'details', 'hint')
+            if respuesta.get(campo)
+        )
+    else:
+        detalle = cuerpo
+
+    if not detalle:
+        detalle = str(error.reason or 'Error de validación remota')
+    if error.code == 400:
+        return f'Supabase rechazó los datos enviados: {detalle}'
+    return f'Error HTTP {error.code} al sincronizar con Supabase: {detalle}'
+
 def supabase_post(table_name, payload):
     """Envía un registro o lista de registros a la API REST de Supabase."""
     if not API_KEY or not SUPABASE_URL:
         return {'status': 'skipped', 'msg': 'No hay credenciales de Supabase configuradas'}
         
-    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table_name}"
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{quote(table_name, safe='')}"
     headers = {
         'apikey': API_KEY,
         'Authorization': f'Bearer {API_KEY}',
@@ -64,6 +87,8 @@ def supabase_post(table_name, payload):
         with urllib.request.urlopen(req, timeout=5) as resp:
             resp_body = resp.read().decode('utf-8')
             return {'status': 'success', 'data': json.loads(resp_body) if resp_body else {}}
+    except urllib.error.HTTPError as e:
+        return {'status': 'error', 'msg': _mensaje_error_http(e)}
     except Exception as e:
         return {'status': 'error', 'msg': str(e)}
 
@@ -76,13 +101,21 @@ def supabase_upsert(table_name, payload, on_conflict_col='sku', do_update=True, 
     Query param: on_conflict=<clave_unica>
     """
     if not API_KEY or not SUPABASE_URL:
-        return {'status': 'skipped', 'msg': 'No hay credenciales de Supabase configuradas'}
+        return {
+            'status': 'error',
+            'msg': 'No hay credenciales de Supabase configuradas',
+            'filas_sincronizadas': 0
+        }
         
     records = payload if isinstance(payload, list) else [payload]
     if not records:
-        return {'status': 'skipped', 'msg': 'Lista de registros vacía'}
+        return {'status': 'success', 'msg': 'No hay registros para sincronizar', 'filas_sincronizadas': 0}
+    if batch_size <= 0:
+        raise ValueError('batch_size debe ser mayor que cero')
         
-    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table_name}?on_conflict={on_conflict_col}"
+    table_path = quote(table_name, safe='')
+    conflict_columns = ','.join(on_conflict_col) if isinstance(on_conflict_col, (list, tuple)) else str(on_conflict_col)
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{table_path}?on_conflict={quote(conflict_columns, safe=',')}"
     resolution = 'merge-duplicates' if do_update else 'ignore-duplicates'
     headers = {
         'apikey': API_KEY,
@@ -92,17 +125,177 @@ def supabase_upsert(table_name, payload, on_conflict_col='sku', do_update=True, 
     }
     
     total_synced = 0
-    try:
-        for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
-            data_bytes = json.dumps(batch, ensure_ascii=False).encode('utf-8')
+    for i in range(0, len(records), batch_size):
+        batch = records[i:i + batch_size]
+        try:
+            data_bytes = json.dumps(batch, ensure_ascii=False, allow_nan=False).encode('utf-8')
             req = urllib.request.Request(url, data=data_bytes, headers=headers, method='POST')
             with urllib.request.urlopen(req, timeout=8) as resp:
-                if resp.status in (200, 201, 204):
-                    total_synced += len(batch)
-        return {'status': 'success', 'filas_sincronizadas': total_synced}
-    except Exception as e:
-        return {'status': 'offline_fallback', 'msg': str(e), 'filas_sincronizadas': total_synced}
+                if resp.status not in (200, 201, 204):
+                    return {
+                        'status': 'error',
+                        'msg': f'Supabase respondió con HTTP {resp.status}',
+                        'filas_sincronizadas': total_synced,
+                        'filas_pendientes': len(records) - total_synced
+                    }
+                total_synced += len(batch)
+        except urllib.error.HTTPError as e:
+            return {
+                'status': 'error',
+                'msg': _mensaje_error_http(e),
+                'filas_sincronizadas': total_synced,
+                'filas_pendientes': len(records) - total_synced
+            }
+        except (urllib.error.URLError, TimeoutError, OSError, TypeError, ValueError) as e:
+            return {
+                'status': 'error',
+                'msg': str(e),
+                'filas_sincronizadas': total_synced,
+                'filas_pendientes': len(records) - total_synced
+            }
+
+    return {'status': 'success', 'filas_sincronizadas': total_synced, 'filas_pendientes': 0}
+
+def supabase_insert(table_name, payload, batch_size=200):
+    """Inserta filas sin clave natural, como registros de decisiones append-only."""
+    records = payload if isinstance(payload, list) else [payload]
+    if not API_KEY or not SUPABASE_URL:
+        return {
+            'status': 'error',
+            'msg': 'No hay credenciales de Supabase configuradas',
+            'filas_sincronizadas': 0,
+            'filas_pendientes': len(records)
+        }
+    if not records:
+        return {'status': 'success', 'filas_sincronizadas': 0, 'filas_pendientes': 0}
+    if batch_size <= 0:
+        raise ValueError('batch_size debe ser mayor que cero')
+
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{quote(table_name, safe='')}"
+    headers = {
+        'apikey': API_KEY,
+        'Authorization': f'Bearer {API_KEY}',
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+    }
+
+    total_synced = 0
+    for i in range(0, len(records), batch_size):
+        batch = records[i:i + batch_size]
+        try:
+            data_bytes = json.dumps(batch, ensure_ascii=False, allow_nan=False).encode('utf-8')
+            req = urllib.request.Request(url, data=data_bytes, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                if resp.status not in (200, 201, 204):
+                    return {
+                        'status': 'error',
+                        'msg': f'Supabase respondió con HTTP {resp.status}',
+                        'filas_sincronizadas': total_synced,
+                        'filas_pendientes': len(records) - total_synced
+                    }
+                total_synced += len(batch)
+        except urllib.error.HTTPError as e:
+            return {
+                'status': 'error',
+                'msg': _mensaje_error_http(e),
+                'filas_sincronizadas': total_synced,
+                'filas_pendientes': len(records) - total_synced
+            }
+        except (urllib.error.URLError, TimeoutError, OSError, TypeError, ValueError) as e:
+            return {
+                'status': 'error',
+                'msg': str(e),
+                'filas_sincronizadas': total_synced,
+                'filas_pendientes': len(records) - total_synced
+            }
+
+    return {'status': 'success', 'filas_sincronizadas': total_synced, 'filas_pendientes': 0}
+
+def supabase_sync_bom(payload):
+    """Inserta o actualiza filas BOM sin requerir una constraint remota adicional."""
+    records = payload if isinstance(payload, list) else [payload]
+    if not API_KEY or not SUPABASE_URL:
+        return {
+            'status': 'error',
+            'msg': 'No hay credenciales de Supabase configuradas',
+            'filas_sincronizadas': 0,
+            'filas_pendientes': len(records)
+        }
+
+    headers = {
+        'apikey': API_KEY,
+        'Authorization': f'Bearer {API_KEY}',
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+    }
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{quote('bom', safe='')}"
+    synced = 0
+
+    for record in records:
+        query = urlencode({
+            'select': 'producto,sku_material',
+            'producto': f"eq.{record['producto']}",
+            'sku_material': f"eq.{record['sku_material']}"
+        })
+        lookup = urllib.request.Request(f'{url}?{query}', headers=headers, method='GET')
+        try:
+            with urllib.request.urlopen(lookup, timeout=8) as response:
+                matches = json.loads(response.read().decode('utf-8'))
+            if len(matches) > 1:
+                return {
+                    'status': 'error',
+                    'msg': (
+                        'Hay varias filas BOM con la misma combinación producto/SKU; '
+                        'no se modificaron para evitar una actualización ambigua.'
+                    ),
+                    'filas_sincronizadas': synced,
+                    'filas_pendientes': len(records) - synced
+                }
+
+            if matches:
+                update_query = urlencode({
+                    'producto': f"eq.{record['producto']}",
+                    'sku_material': f"eq.{record['sku_material']}"
+                })
+                request = urllib.request.Request(
+                    f'{url}?{update_query}',
+                    data=json.dumps(record, ensure_ascii=False, allow_nan=False).encode('utf-8'),
+                    headers=headers,
+                    method='PATCH'
+                )
+            else:
+                request = urllib.request.Request(
+                    url,
+                    data=json.dumps(record, ensure_ascii=False, allow_nan=False).encode('utf-8'),
+                    headers=headers,
+                    method='POST'
+                )
+
+            with urllib.request.urlopen(request, timeout=8) as response:
+                if response.status not in (200, 201, 204):
+                    return {
+                        'status': 'error',
+                        'msg': f'Supabase respondió con HTTP {response.status}',
+                        'filas_sincronizadas': synced,
+                        'filas_pendientes': len(records) - synced
+                    }
+            synced += 1
+        except urllib.error.HTTPError as error:
+            return {
+                'status': 'error',
+                'msg': _mensaje_error_http(error),
+                'filas_sincronizadas': synced,
+                'filas_pendientes': len(records) - synced
+            }
+        except (urllib.error.URLError, TimeoutError, OSError, TypeError, ValueError) as error:
+            return {
+                'status': 'error',
+                'msg': str(error),
+                'filas_sincronizadas': synced,
+                'filas_pendientes': len(records) - synced
+            }
+
+    return {'status': 'success', 'filas_sincronizadas': synced, 'filas_pendientes': 0}
 
 def leer_estado():
     """
@@ -252,4 +445,3 @@ def obtener_analisis_demanda():
             'stock_real', 'en_quiebre'
         ]].to_dict(orient='records')
     }
-

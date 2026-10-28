@@ -14,9 +14,11 @@ import sys
 import os
 import json
 import time
+import tempfile
 import unittest
 import threading
 import urllib.request
+from unittest.mock import patch
 from http.server import HTTPServer
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -32,6 +34,9 @@ class TestHttpEndpoints(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.db_path_original = base_datos.DB_PATH
+        cls.temp_dir = tempfile.TemporaryDirectory()
+        base_datos.DB_PATH = os.path.join(cls.temp_dir.name, 'kardex_e2.db')
         base_datos.poblar_estado_inicial_si_vacio()
         cls.server = HTTPServer(('127.0.0.1', TEST_PORT), EnterpriseRequestHandler)
         cls.thread = threading.Thread(target=cls.server.serve_forever)
@@ -43,6 +48,8 @@ class TestHttpEndpoints(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.shutdown()
         cls.server.server_close()
+        base_datos.DB_PATH = cls.db_path_original
+        cls.temp_dir.cleanup()
 
     def test_01_get_home_html(self):
         url = f"http://127.0.0.1:{TEST_PORT}/"
@@ -53,7 +60,8 @@ class TestHttpEndpoints(unittest.TestCase):
             self.assertIn("Tablero de Control", body)
             self.assertIn("Ingesta de Datos", body)
 
-    def test_02_get_api_correr(self):
+    @patch('nucleo.datos.guardar_propuestas')
+    def test_02_get_api_correr(self, guardar_propuestas):
         url = f"http://127.0.0.1:{TEST_PORT}/api/correr"
         with urllib.request.urlopen(url, timeout=10) as resp:
             self.assertEqual(resp.status, 200)
@@ -71,7 +79,8 @@ class TestHttpEndpoints(unittest.TestCase):
             self.assertIn('materiales', data)
             self.assertEqual(data.get('total_skus'), 440)
 
-    def test_04_get_api_decidir(self):
+    @patch('nucleo.datos.supabase_post', return_value={'status': 'success'})
+    def test_04_get_api_decidir(self, supabase_post):
         url = f"http://127.0.0.1:{TEST_PORT}/api/decidir?sku=MP-0001&accion=APROBADA"
         with urllib.request.urlopen(url, timeout=5) as resp:
             self.assertEqual(resp.status, 200)
@@ -106,7 +115,11 @@ class TestHttpEndpoints(unittest.TestCase):
             self.assertTrue(data.get('valido'))
             self.assertEqual(data.get('filas_total'), 1)
 
-    def test_07_post_api_importar(self):
+    @patch(
+        'nucleo.datos.supabase_upsert',
+        return_value={'status': 'success', 'filas_sincronizadas': 1, 'filas_pendientes': 0}
+    )
+    def test_07_post_api_importar(self, supabase_upsert):
         url = f"http://127.0.0.1:{TEST_PORT}/api/importar"
         payload = {
             'nombre_archivo': 'prueba_lote_import.csv',

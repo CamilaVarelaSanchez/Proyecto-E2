@@ -11,6 +11,8 @@ Verifica la resiliencia del sistema ante intentos deliberados de inducir fallos:
 """
 
 import unittest
+import os
+import tempfile
 import json
 import io
 import urllib.request
@@ -18,6 +20,7 @@ import urllib.error
 import threading
 import time
 from http.server import HTTPServer
+from unittest.mock import patch
 import pandas as pd
 import numpy as np
 
@@ -30,6 +33,14 @@ class TestQAManejoDefensivo(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.db_path_original = base_datos.DB_PATH
+        cls.temp_dir = tempfile.TemporaryDirectory()
+        base_datos.DB_PATH = os.path.join(cls.temp_dir.name, 'kardex_e2.db')
+        cls.supabase_patcher = patch(
+            'nucleo.datos.supabase_upsert',
+            return_value={'status': 'success', 'filas_sincronizadas': 0, 'filas_pendientes': 0}
+        )
+        cls.supabase_patcher.start()
         base_datos.poblar_estado_inicial_si_vacio()
         cls.server = HTTPServer(('127.0.0.1', QA_PORT), EnterpriseRequestHandler)
         cls.thread = threading.Thread(target=cls.server.serve_forever)
@@ -41,6 +52,9 @@ class TestQAManejoDefensivo(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.shutdown()
         cls.server.server_close()
+        cls.supabase_patcher.stop()
+        base_datos.DB_PATH = cls.db_path_original
+        cls.temp_dir.cleanup()
 
     # -------------------------------------------------------------
     # 1. ARCHIVOS CSV VACÍOS Y CORRUPTOS

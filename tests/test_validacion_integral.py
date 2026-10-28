@@ -11,7 +11,9 @@ Ejecuta la auditoría exhaustiva sobre los 6 ejes prioritarios:
 
 import os
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 import pandas as pd
 import numpy as np
 
@@ -28,8 +30,22 @@ class TestValidacionIntegralEmpresarial(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Inicializa la base de datos relacional y carga el estado inicial."""
+        cls.db_path_original = base_datos.DB_PATH
+        cls.temp_dir = tempfile.TemporaryDirectory()
+        base_datos.DB_PATH = os.path.join(cls.temp_dir.name, 'kardex_e2.db')
+        cls.supabase_patcher = patch(
+            'nucleo.datos.supabase_upsert',
+            return_value={'status': 'success', 'filas_sincronizadas': 0, 'filas_pendientes': 0}
+        )
+        cls.supabase_patcher.start()
         base_datos.poblar_estado_inicial_si_vacio()
         cls.estado = datos.leer_estado()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.supabase_patcher.stop()
+        base_datos.DB_PATH = cls.db_path_original
+        cls.temp_dir.cleanup()
 
     def test_01_lectura_estricta_desde_base_relacional(self):
         """Verifica que ningún módulo lea de archivos CSV; el estado proviene de SQL."""
@@ -94,7 +110,8 @@ class TestValidacionIntegralEmpresarial(unittest.TestCase):
         self.assertLessEqual(res_eri['eri_global_pct'], 100.0)
         self.assertIn('saldo_teorico', res_eri['df_auditoria'].columns)
 
-    def test_06_recomendaciones_asistente_sin_alucinaciones(self):
+    @patch('nucleo.datos.guardar_propuestas')
+    def test_06_recomendaciones_asistente_sin_alucinaciones(self, guardar_propuestas):
         """Verifica que las propuestas contengan lenguaje formal, justificación y variables reales."""
         res_orq = orquestador.ejecutar_orquestacion()
         self.assertEqual(res_orq['status'], 'completado')
@@ -165,7 +182,8 @@ class TestValidacionIntegralEmpresarial(unittest.TestCase):
         self.assertIn('instrumento_4_decision', tele)
         self.assertIn('instrumento_5_costo', tele)
         self.assertIn('bitacora_corridas', tele)
-    def test_11_ingesta_idempotente_supabase_hashes_y_upsert(self):
+    @patch('nucleo.datos.supabase_upsert')
+    def test_11_ingesta_idempotente_supabase_hashes_y_upsert(self, supabase_upsert):
         """
         Verifica los requisitos específicos de ingesta idempotente para Supabase:
           1. Hashes únicos (SHA256 y MD5) generados sobre archivo y filas.
@@ -174,6 +192,12 @@ class TestValidacionIntegralEmpresarial(unittest.TestCase):
           4. Cero duplicados tras múltiples reintentos de carga.
           5. Detección de SKU huérfano y rechazo con causal técnica relacional (3FN).
         """
+        supabase_upsert.side_effect = lambda table_name, payload, **kwargs: {
+            'status': 'success',
+            'filas_sincronizadas': len(payload),
+            'filas_pendientes': 0
+        }
+
         def _limpiar_datos_prueba():
             c = base_datos.get_connection()
             cur = c.cursor()

@@ -114,6 +114,17 @@ def inicializar_esquema():
     );
     """)
 
+    # 6.1 Inventario paralelo reportado por el jefe de bodega
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS inventario_bodega_jefe (
+        codigo TEXT PRIMARY KEY,
+        material TEXT,
+        conteo_jefe INTEGER,
+        observacion TEXT,
+        FOREIGN KEY (codigo) REFERENCES maestro_materiales(sku)
+    );
+    """)
+
     # 7. Plan de Producción
     cur.execute("""
     CREATE TABLE IF NOT EXISTS plan_produccion (
@@ -175,6 +186,15 @@ def inicializar_esquema():
         criterio_parada_activado INTEGER NOT NULL,
         motivo_parada TEXT,
         status TEXT NOT NULL
+    );
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS control_ingesta_supabase (
+        tipo_documento TEXT NOT NULL,
+        hash_archivo_sha256 TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        PRIMARY KEY (tipo_documento, hash_archivo_sha256)
     );
     """)
 

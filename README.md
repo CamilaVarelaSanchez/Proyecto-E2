@@ -279,6 +279,16 @@ python python/analisis/deep_analysis.py
    python python/upload_to_supabase.py
    ```
 
+### 8.6 Importación de CSV desde la aplicación
+Ejecuta `python app.py`. El selector permite importar las doce tablas de `public`:
+
+* **Datos operativos:** `movimientos_inventario`, `ordenes_compra`, `conteo_fisico`, `Inventario_bodega_JEFE`, `inventario_inicial`, `maestro_materiales`, `maestro_productos`, `bom` y `plan_produccion`.
+* **Auditoría y decisiones:** `auditoria_corridas_orquestacion`, `propuestas_reposicion` y `registro_decisiones_compras`.
+
+El CSV debe incluir las columnas obligatorias de la tabla seleccionada. Las cabeceras no distinguen mayúsculas/minúsculas; en el inventario del jefe se aceptan `conteo_jefe` o `conteo_jefe_limpio`. En `bom` se ignora `id_bom`; la aplicación localiza cada fila por `(producto, sku_material)` para actualizarla o insertarla sin exigir cambios de esquema en Supabase. Las tablas con ID identity (`propuestas_reposicion` y `registro_decisiones_compras`) generan su ID en Supabase y no importan la columna `id`.
+
+Las nueve tablas operativas y de referencia, junto con `auditoria_corridas_orquestacion`, se guardan en la base local SQLite y se sincronizan con Supabase mediante UPSERT. Las tablas de propuestas y decisiones se registran únicamente en Supabase; son append-only y la aplicación evita volver a insertar el mismo archivo exacto después de confirmar su carga. Para esas tablas, si una fila del lote no valida, se rechaza el lote completo para evitar inserciones parciales sin clave natural. Los números, enteros, fechas y UUID se validan en Python antes de sincronizar; cada fila con formato o tipo inválido aparece en la tabla de rechazadas con el motivo. En órdenes de compra, `cantidad` y `costo_unitario` deben ser enteros; los valores como `100.0` se convierten a enteros y los decimales reales se rechazan. Los errores HTTP de la API se presentan con un mensaje comprensible y, cuando aplica, se indica si los datos quedaron guardados localmente. Las credenciales de escritura deben configurarse en `.env`; se recomienda `SUPABASE_SERVICE_ROLE_KEY` solo en el backend, nunca en el navegador.
+
 ---
 **E2 SAS · Dirección de Operaciones & Consultoría Analítica**  
 *"Transformando datos operacionales en decisiones de alto impacto."*

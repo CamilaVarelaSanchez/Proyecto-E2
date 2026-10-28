@@ -24,6 +24,12 @@ import pandas as pd
 import numpy as np
 
 from nucleo import base_datos
+from nucleo.ingesta_supabase import (
+    TIPOS_DOCUMENTO_ADICIONALES,
+    columnas_esperadas as columnas_esperadas_supabase,
+    ejecutar_ingesta as ejecutar_ingesta_supabase,
+    faltan_columnas as faltan_columnas_supabase
+)
 
 # Catálogos canónicos de normalización (Paso 3)
 CATEGORIAS_CANONICAS = {
@@ -53,9 +59,9 @@ COLUMNAS_REQUERIDAS = {
     'ordenes_compra': ['orden_compra', 'sku', 'cantidad', 'fecha_pedido'],
     'conteo_fisico': ['sku', 'stock_fisico_contado'],
     'maestro_materiales': ['sku', 'descripcion', 'categoria', 'costo_unitario'],
-    'plan_produccion': ['periodo', 'producto', 'cantidad_planeada', 'cantidad_real'],
-    'bom': ['producto', 'sku_material', 'cantidad_por_unidad']
 }
+
+TIPOS_DOCUMENTO_SOPORTADOS = frozenset(COLUMNAS_REQUERIDAS) | TIPOS_DOCUMENTO_ADICIONALES
 
 def normalizar_texto_categoria(cat_raw):
     """Normaliza variantes tipográficas a la categoría canónica oficial."""
@@ -70,6 +76,19 @@ def normalizar_texto_unidad(uni_raw):
         return 'unidad'
     norm = uni_raw.strip().lower()
     return UNIDADES_CANONICAS.get(norm, uni_raw.strip().lower())
+
+def _parsear_numero(valor, campo, entero=False):
+    if pd.isna(valor) or not str(valor).strip():
+        raise ValueError(f'{campo} debe tener un valor numérico.')
+    try:
+        numero = float(str(valor).strip().replace(',', '.'))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"'{valor}' no tiene un formato numérico válido para {campo}.") from exc
+    if not np.isfinite(numero):
+        raise ValueError(f'{campo} debe ser un número finito.')
+    if entero and not numero.is_integer():
+        raise ValueError(f'{campo} debe ser un número entero.')
+    return int(numero) if entero else numero
 
 def detectar_delimitador_y_codificacion(contenido_bytes):
     """Detecta automáticamente codificación y delimitador de un archivo CSV."""
@@ -169,7 +188,26 @@ def previsualizar_archivo(nombre_archivo, contenido_bytes, tipo_documento='movim
     tamano_kb = round(len(contenido_bytes) / 1024, 2)
     hash_sha256 = hashlib.sha256(contenido_bytes).hexdigest()
     hash_md5 = hashlib.md5(contenido_bytes).hexdigest()
-    cols_esperadas = COLUMNAS_REQUERIDAS.get(tipo_documento, [])
+    if tipo_documento not in TIPOS_DOCUMENTO_SOPORTADOS:
+        return {
+            'valido': False,
+            'nombre_archivo': os.path.basename(nombre_archivo),
+            'tamano_kb': tamano_kb,
+            'hash_archivo_sha256': hash_sha256,
+            'hash_archivo_md5': hash_md5,
+            'codificacion': None,
+            'delimitador': None,
+            'filas_total': 0,
+            'columnas_encontradas': [],
+            'columnas_esperadas': [],
+            'columnas_faltantes': [],
+            'mensaje': f'Tipo de documento no soportado: {tipo_documento}'
+        }
+    cols_esperadas = (
+        columnas_esperadas_supabase(tipo_documento)
+        if tipo_documento in TIPOS_DOCUMENTO_ADICIONALES
+        else COLUMNAS_REQUERIDAS.get(tipo_documento, [])
+    )
 
     # Manejo defensivo: Archivo vacío (0 bytes o solo espacios)
     if not contenido_bytes.strip():
@@ -215,7 +253,10 @@ def previsualizar_archivo(nombre_archivo, contenido_bytes, tipo_documento='movim
     cols_encontradas = [str(c).strip().lower().replace('"', '').replace("'", '') for c in df.columns]
     df.columns = cols_encontradas
     
-    faltantes = [c for c in cols_esperadas if c not in cols_encontradas]
+    if tipo_documento in TIPOS_DOCUMENTO_ADICIONALES:
+        faltantes = faltan_columnas_supabase(tipo_documento, cols_encontradas)
+    else:
+        faltantes = [c for c in cols_esperadas if c not in cols_encontradas]
     
     # Vista previa segura convirtiendo NaN a None
     muestra = df.head(n_filas).replace({np.nan: None}).to_dict(orient='records')
@@ -245,6 +286,25 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
       4. Sincronización idempotente con Supabase.
       5. Tarjeta de auditoría cuantitativa de 5 puntos.
     """
+    if tipo_documento not in TIPOS_DOCUMENTO_SOPORTADOS:
+        return {
+            'status': 'error_validacion',
+            'mensaje': f'Tipo de documento no soportado: {tipo_documento}',
+            'nombre_archivo': os.path.basename(nombre_archivo),
+            'tipo_documento': tipo_documento,
+            'estado_carga': 'Rechazado',
+            'filas_leidas': 0,
+            'filas_insertadas': 0,
+            'filas_actualizadas': 0,
+            'filas_insertadas_o_actualizadas': 0,
+            'filas_cargadas': 0,
+            'filas_omitidas_duplicadas': 0,
+            'filas_rechazadas': 0,
+            'sincronizacion_supabase': {'status': 'skipped', 'msg': 'El tipo de documento no está soportado'},
+            'resumen_ejecutivo': f'Tipo de documento no soportado: {tipo_documento}',
+            'trazabilidad_filas': []
+        }
+
     base_datos.inicializar_esquema()
     conn = base_datos.get_connection()
     cur = conn.cursor()
@@ -311,7 +371,13 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
     cols_esperadas = COLUMNAS_REQUERIDAS.get(tipo_documento, [])
     cols_presentes = [str(c).strip().lower().replace('"', '').replace("'", '') for c in df_raw.columns]
     df_raw.columns = cols_presentes
-    
+
+    if tipo_documento in TIPOS_DOCUMENTO_ADICIONALES:
+        conn.close()
+        return ejecutar_ingesta_supabase(
+            nombre_archivo, raw_bytes, df_raw, tipo_documento, usuario
+        )
+
     faltantes = [c for c in cols_esperadas if c not in cols_presentes]
     if faltantes:
         conn.close()
@@ -345,6 +411,7 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
     filas_actualizadas = 0
     filas_omitidas_duplicadas = 0
     filas_rechazadas = 0
+    registros_supabase = []
     
     conteo_previo = 0
     conteo_posterior = 0
@@ -365,9 +432,11 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
             sku = str(row.get('sku', '')).strip().upper() if pd.notna(row.get('sku')) else ''
             tipo_mov = str(row.get('tipo_movimiento', '')).strip().lower()
             cant_raw = row.get('cantidad')
-            doc = str(row.get('documento', f'DOC-{num_fila}')).strip()
+            doc_raw = row.get('documento')
+            doc = str(doc_raw).strip() if pd.notna(doc_raw) and str(doc_raw).strip() else f'DOC-{num_fila}'
             bodega = str(row.get('bodega', 'BOD-01')).strip()
-            usr = str(row.get('usuario', 'OP-AUTO')).strip()
+            responsable_raw = row.get('responsable', row.get('usuario', 'OP-AUTO'))
+            usr = str(responsable_raw).strip() if pd.notna(responsable_raw) else 'OP-AUTO'
             
             # Validación de SKU obligatorio
             if not sku:
@@ -403,14 +472,12 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 
             # Validación de cantidad numérica
             try:
-                cantidad = abs(float(cant_raw))
-                if np.isnan(cantidad):
-                    raise ValueError("Valor NaN")
-            except Exception:
+                cantidad = abs(_parsear_numero(cant_raw, 'cantidad'))
+            except (TypeError, ValueError, OverflowError) as exc:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
                     'fila': num_fila, 'identificador': f"{sku} / {doc}", 'estado': 'RECHAZADA',
-                    'motivo': 'Cantidad no numérica', 'detalle': f"El valor '{cant_raw}' no es convertible a cantidad real.",
+                    'motivo': 'Cantidad no numérica', 'detalle': str(exc),
                     'valor_original': str(cant_raw)
                 })
                 continue
@@ -432,6 +499,15 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 })
                 continue
             hashes_vistos_en_archivo.add(id_mov)
+            registros_supabase.append({
+                'fecha': fecha_norm,
+                'sku': sku,
+                'tipo_movimiento': tipo_mov,
+                'cantidad': cantidad,
+                'documento': doc,
+                'bodega': bodega,
+                'responsable': usr
+            })
             
             # Idempotencia en base de datos: ON CONFLICT (id_movimiento) DO NOTHING
             cur.execute("SELECT 1 FROM movimientos_inventarios WHERE id_movimiento = ?;", (id_mov,))
@@ -526,6 +602,21 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                     'motivo': 'Fecha de pedido inválida', 'detalle': err_fp, 'valor_original': str(fp_raw)
                 })
                 continue
+
+            fecha_promesa_raw = row.get('fecha_promesa')
+            fecha_promesa_norm, err_fecha_promesa = (
+                validar_y_normalizar_fecha(fecha_promesa_raw)
+                if pd.notna(fecha_promesa_raw) and str(fecha_promesa_raw).strip()
+                else (None, None)
+            )
+            if err_fecha_promesa:
+                filas_rechazadas += 1
+                trazabilidad_filas.append({
+                    'fila': num_fila, 'identificador': f"{id_oc} / {sku}",
+                    'estado': 'RECHAZADA', 'motivo': 'Fecha promesa inválida',
+                    'detalle': err_fecha_promesa, 'valor_original': str(fecha_promesa_raw)
+                })
+                continue
                 
             fr_norm, err_fr = (validar_y_normalizar_fecha(fr_raw) if pd.notna(fr_raw) and str(fr_raw).strip() else (None, None))
             if err_fr:
@@ -537,15 +628,19 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 continue
             
             try:
-                cant = abs(float(cant_raw))
-                costo = abs(float(costo_raw)) if pd.notna(costo_raw) else 0.0
-                if np.isnan(cant) or np.isnan(costo):
-                    raise ValueError("NaN")
-            except Exception as e:
+                cant = abs(_parsear_numero(cant_raw, 'cantidad', entero=True))
+                costo = abs(_parsear_numero(costo_raw, 'costo_unitario', entero=True)) if pd.notna(costo_raw) else 0
+            except (TypeError, ValueError, OverflowError) as e:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
                     'fila': num_fila, 'identificador': f"{id_oc} / {sku}", 'estado': 'RECHAZADA',
-                    'motivo': 'Cantidad o costo inválido', 'detalle': str(e), 'valor_original': str(cant_raw)
+                    'motivo': (
+                        'Cantidad inválida: no se permiten valores decimales en órdenes de compra'
+                        if 'debe ser un número entero' in str(e)
+                        else 'Cantidad o costo inválido'
+                    ),
+                    'detalle': str(e),
+                    'valor_original': f'Cantidad: {cant_raw}, costo_unitario: {costo_raw}'
                 })
                 continue
                 
@@ -559,14 +654,35 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 })
                 continue
             hashes_vistos_en_archivo.add(oc)
+            registros_supabase.append({
+                'orden_compra': oc,
+                'fecha_pedido': fp_norm,
+                'sku': sku,
+                'cantidad': cant,
+                'proveedor': prov,
+                'fecha_promesa': fecha_promesa_norm,
+                'fecha_recepcion': fr_norm,
+                'costo_unitario': costo
+            })
 
-            cur.execute("SELECT cantidad, costo_unitario, estado FROM ordenes_compra WHERE orden_compra = ?;", (oc,))
+            cur.execute("""
+            SELECT sku, proveedor, cantidad, fecha_pedido, fecha_recepcion, costo_unitario
+            FROM ordenes_compra
+            WHERE orden_compra = ?;
+            """, (oc,))
             fila_ant = cur.fetchone()
             
-            cant_display = int(cant) if cant.is_integer() else cant
+            cant_display = int(cant) if float(cant).is_integer() else cant
 
             if fila_ant is not None:
-                if fila_ant[0] == cant and fila_ant[1] == costo:
+                if (
+                    fila_ant[0] == sku
+                    and fila_ant[1] == prov
+                    and fila_ant[2] == cant
+                    and fila_ant[3] == fp_norm
+                    and fila_ant[4] == fr_norm
+                    and fila_ant[5] == costo
+                ):
                     filas_omitidas_duplicadas += 1
                     trazabilidad_filas.append({
                         'fila': num_fila, 'identificador': id_oc, 'estado': 'OMITIDA_EXISTENTE',
@@ -639,14 +755,12 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 
             # Validación numérica de conteo
             try:
-                stock_contado = abs(float(stock_raw))
-                if np.isnan(stock_contado):
-                    raise ValueError("NaN")
-            except Exception:
+                stock_contado = abs(_parsear_numero(stock_raw, 'conteo físico'))
+            except (TypeError, ValueError, OverflowError) as exc:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
                     'fila': num_fila, 'identificador': sku, 'estado': 'RECHAZADA',
-                    'motivo': 'Conteo físico no numérico o inválido', 'detalle': f"Valor inválido '{stock_raw}'",
+                    'motivo': 'Conteo físico no numérico o inválido', 'detalle': str(exc),
                     'valor_original': str(stock_raw)
                 })
                 continue
@@ -673,12 +787,21 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 })
                 continue
             hashes_vistos_en_archivo.add(sku)
+            registros_supabase.append({
+                'sku': sku,
+                'stock_fisico_contado': stock_contado,
+                'fecha_conteo': fecha_norm
+            })
                 
-            cur.execute("SELECT stock_fisico_contado FROM conteo_fisico WHERE sku = ?;", (sku,))
+            cur.execute("""
+            SELECT stock_fisico_contado, fecha_conteo
+            FROM conteo_fisico
+            WHERE sku = ?;
+            """, (sku,))
             fila_ant = cur.fetchone()
             
             if fila_ant is not None:
-                if fila_ant[0] == stock_contado:
+                if fila_ant[0] == stock_contado and fila_ant[1] == fecha_norm:
                     filas_omitidas_duplicadas += 1
                     trazabilidad_filas.append({
                         'fila': num_fila, 'identificador': sku, 'estado': 'OMITIDA_EXISTENTE',
@@ -746,10 +869,8 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                 continue
                 
             try:
-                costo = abs(float(costo_raw))
-                lt = int(abs(float(lt_raw))) if pd.notna(lt_raw) else 7
-                if np.isnan(costo):
-                    raise ValueError("NaN")
+                costo = abs(_parsear_numero(costo_raw, 'costo'))
+                lt = abs(_parsear_numero(lt_raw, 'lead time', entero=True)) if pd.notna(lt_raw) else 7
             except Exception as e:
                 filas_rechazadas += 1
                 trazabilidad_filas.append({
@@ -768,13 +889,56 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
                     'detalle': f"El SKU {sku} se repite en este lote.", 'valor_original': sku
                 })
                 continue
+            registro_material = {
+                'sku': sku,
+                'descripcion': desc,
+                'categoria': cat,
+                'unidad': uni,
+                'costo_unitario': costo,
+                'lead_time_declarado_dias': lt
+            }
+            for campo in ('proveedor', 'stock_min', 'stock_max'):
+                if campo in df_raw.columns:
+                    valor = row.get(campo)
+                    if pd.notna(valor):
+                        if campo in ('stock_min', 'stock_max'):
+                            try:
+                                valor = _parsear_numero(valor, campo, entero=True)
+                            except (TypeError, ValueError) as e:
+                                filas_rechazadas += 1
+                                trazabilidad_filas.append({
+                                    'fila': num_fila, 'identificador': sku,
+                                    'estado': 'RECHAZADA',
+                                    'motivo': f'{campo} inválido',
+                                    'detalle': str(e), 'valor_original': str(row.get(campo))
+                                })
+                                registro_material = None
+                                break
+                        else:
+                            valor = str(valor).strip()
+                    else:
+                        valor = None
+                    registro_material[campo] = valor
+            if registro_material is None:
+                continue
             hashes_vistos_en_archivo.add(sku)
+            registros_supabase.append(registro_material)
 
-            cur.execute("SELECT costo_unitario, descripcion, categoria FROM maestro_materiales WHERE sku = ?;", (sku,))
+            cur.execute("""
+            SELECT costo_unitario, descripcion, categoria, unidad, lead_time_declarado_dias
+            FROM maestro_materiales
+            WHERE sku = ?;
+            """, (sku,))
             fila_ant = cur.fetchone()
             
             if fila_ant is not None:
-                if fila_ant[0] == costo and fila_ant[1] == desc and fila_ant[2] == cat:
+                if (
+                    fila_ant[0] == costo
+                    and fila_ant[1] == desc
+                    and fila_ant[2] == cat
+                    and fila_ant[3] == uni
+                    and fila_ant[4] == lt
+                ):
                     filas_omitidas_duplicadas += 1
                     trazabilidad_filas.append({
                         'fila': num_fila, 'identificador': sku, 'estado': 'OMITIDA_EXISTENTE',
@@ -815,27 +979,38 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
         filas_insertadas = filas_leidas
 
     # Sincronización idempotente con Supabase (UPSERT)
-    sincronizacion_sb = {'status': 'skipped', 'msg': 'Sin registros válidos para sincronizar'}
-    if (filas_insertadas + filas_actualizadas) > 0:
+    sincronizacion_sb = {'status': 'skipped', 'msg': 'Sin filas válidas para sincronizar', 'filas_sincronizadas': 0}
+    if registros_supabase:
         try:
             from nucleo.datos import supabase_upsert
             tabla_sb_map = {
-                'movimientos_inventario': ('movimientos_inventarios', 'id_movimiento'),
+                'movimientos_inventario': ('movimientos_inventario', 'documento'),
                 'ordenes_compra': ('ordenes_compra', 'orden_compra'),
                 'conteo_fisico': ('conteo_fisico', 'sku'),
                 'maestro_materiales': ('maestro_materiales', 'sku')
             }
             if tipo_documento in tabla_sb_map:
                 tabla_sb, clave_conflicto = tabla_sb_map[tipo_documento]
-                payload_sb = df_raw.replace({np.nan: None}).to_dict(orient='records')
                 sincronizacion_sb = supabase_upsert(
                     table_name=tabla_sb,
-                    payload=payload_sb,
+                    payload=registros_supabase,
                     on_conflict_col=clave_conflicto,
                     do_update=True
                 )
+            else:
+                sincronizacion_sb = {
+                    'status': 'error',
+                    'msg': f'No hay sincronización Supabase configurada para {tipo_documento}',
+                    'filas_sincronizadas': 0,
+                    'filas_pendientes': len(registros_supabase)
+                }
         except Exception as e_sb:
-            sincronizacion_sb = {'status': 'offline_fallback', 'msg': str(e_sb)}
+            sincronizacion_sb = {
+                'status': 'error',
+                'msg': str(e_sb),
+                'filas_sincronizadas': 0,
+                'filas_pendientes': len(registros_supabase)
+            }
 
     # Categorización cuantitativa del Estado de la Carga (Requisito 3.1)
     filas_modificadas = filas_insertadas + filas_actualizadas
@@ -854,6 +1029,11 @@ def ejecutar_carga_cinco_pasos(nombre_archivo, contenido_bytes_o_str, tipo_docum
         resumen_ejecutivo = f"Se rechazaron {filas_rechazadas} fila(s) del lote debido a inconsistencias estructurales o de formato."
     else:
         resumen_ejecutivo = f"{filas_leidas} registros procesados con éxito ({filas_modificadas} modificados, {filas_omitidas_duplicadas} omitidos por idempotencia)."
+
+    if sincronizacion_sb.get('status') == 'error':
+        resumen_ejecutivo += f" No se sincronizó completamente con Supabase: {sincronizacion_sb.get('msg', 'error desconocido')}."
+        if filas_rechazadas == 0:
+            estado_carga = 'Parcial'
 
     cur.execute("""
     INSERT INTO bitacora_cargas 

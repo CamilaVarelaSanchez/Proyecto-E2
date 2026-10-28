@@ -1114,11 +1114,26 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                             <div class="form-group">
                                 <label class="form-label">Tipo de documento a procesar:</label>
                                 <select id="ingestaTipoDoc" class="form-select" onchange="limpiarEstadoIngesta()">
-                                    <option value="movimientos_inventario">Movimientos de inventario (Kardex transaccional)</option>
-                                    <option value="ordenes_compra">Órdenes de compra (histórico de adquisiciones)</option>
-                                    <option value="conteo_fisico">Conteo físico auditado en bodega</option>
-                                    <option value="maestro_materiales">Catálogo maestro de materiales</option>
+                                    <optgroup label="Datos operativos">
+                                        <option value="movimientos_inventario">Movimientos de inventario (Kardex)</option>
+                                        <option value="ordenes_compra">Órdenes de compra</option>
+                                        <option value="conteo_fisico">Conteo físico auditado</option>
+                                        <option value="Inventario_bodega_JEFE">Inventario paralelo del jefe de bodega</option>
+                                        <option value="inventario_inicial">Inventario inicial</option>
+                                        <option value="maestro_materiales">Maestro de materiales</option>
+                                        <option value="maestro_productos">Maestro de productos</option>
+                                        <option value="bom">Lista de materiales (BOM)</option>
+                                        <option value="plan_produccion">Plan de producción</option>
+                                    </optgroup>
+                                    <optgroup label="Auditoría y decisiones">
+                                        <option value="auditoria_corridas_orquestacion">Corridas de auditoría de abastecimiento</option>
+                                        <option value="propuestas_reposicion">Propuestas de reposición</option>
+                                        <option value="registro_decisiones_compras">Decisiones de compras</option>
+                                    </optgroup>
                                 </select>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.4rem;">
+                                    Propuestas y decisiones se registran solo en Supabase; las demás tablas también se reflejan en la base local.
+                                </div>
                             </div>
 
                             <!-- Zona de Carga (Drag & Drop) -->
@@ -1868,12 +1883,20 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                 mostrarEstadoDropzone('completado');
                 renderReporteAuditoriaDetallado(data);
                 
-                if (data.estado_carga === 'Exitoso') {
-                    showToast(`Carga procesada con éxito: ${data.filas_insertadas_o_actualizadas} registros conformes asentados en base de datos.`, 'success');
+                const syncError = data.sincronizacion_supabase && data.sincronizacion_supabase.status === 'error';
+                if (data.estado_carga === 'Rechazado') {
+                    showToast(data.mensaje || data.resumen_ejecutivo || 'Carga rechazada: el archivo contiene inconsistencias.', 'error');
+                } else if (syncError) {
+                    showToast(data.persistencia_local === false
+                        ? 'La carga no se confirmó en Supabase. Revisa el detalle en el reporte.'
+                        : 'La carga quedó local, pero no se sincronizó con Supabase. Revisa el detalle en el reporte.', 'warning');
+                } else if (data.estado_carga === 'Exitoso') {
+                    const destino = data.persistencia_local === false ? 'Supabase' : 'la base local y Supabase';
+                    showToast(`Carga procesada con éxito: ${data.filas_insertadas_o_actualizadas} registros conformes asentados en ${destino}.`, 'success');
                 } else if (data.estado_carga === 'Parcial') {
                     showToast(data.resumen_ejecutivo || `Carga procesada con observaciones: ${data.filas_insertadas_o_actualizadas} conformes, ${data.filas_rechazadas} descartados por inconsistencia.`, 'warning');
                 } else {
-                    showToast(data.mensaje || `Carga rechazada: el archivo contiene inconsistencias estructurales.`, 'error');
+                    showToast(data.mensaje || data.resumen_ejecutivo || 'La carga finalizó con observaciones.', 'warning');
                 }
             } catch (err) {
                 mostrarEstadoDropzone('inicial');
@@ -1888,7 +1911,13 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             document.getElementById('panelRendicionCuentas').style.display = 'block';
 
             const badge = document.getElementById('rcBadgeEstado');
-            if (data.estado_carga === 'Exitoso') {
+            const sync = data.sincronizacion_supabase || {};
+            if (sync.status === 'error') {
+                badge.className = 'kpi-badge badge-warning';
+                badge.innerText = data.persistencia_local === false
+                    ? 'Pendiente de sincronizar Supabase'
+                    : 'Carga local; pendiente sincronizar Supabase';
+            } else if (data.estado_carga === 'Exitoso') {
                 badge.className = 'kpi-badge badge-success';
                 badge.innerText = 'Carga exitosa (100% conforme)';
             } else if (data.estado_carga === 'Parcial') {
@@ -1904,12 +1933,21 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             document.getElementById('rcHashArchivo').innerText = abreviarHash(data.hash_archivo_sha256);
             
             const sbSync = document.getElementById('rcSupabaseSync');
-            if (data.sincronizacion_supabase && (data.sincronizacion_supabase.status === 'success' || data.sincronizacion_supabase.estado === 'SINCRONIZADO')) {
-                sbSync.innerHTML = '<span style="color: var(--text-success);">Sincronizado en base relacional (UPSERT ON CONFLICT)</span>';
-            } else if (data.sincronizacion_supabase && data.sincronizacion_supabase.status === 'offline_fallback') {
-                sbSync.innerHTML = '<span style="color: var(--text-primary);">Asentado en base relacional local (modo resiliente)</span>';
+            if (sync.status === 'success') {
+                sbSync.style.color = 'var(--text-success)';
+                sbSync.textContent = sync.archivo_duplicado
+                    ? sync.msg
+                    : `Sincronizado con Supabase (${sync.filas_sincronizadas || 0} filas).`;
+            } else if (sync.status === 'error') {
+                sbSync.style.color = 'var(--text-danger)';
+                const pendientes = sync.filas_pendientes === undefined ? '' : ` Filas pendientes: ${sync.filas_pendientes}.`;
+                sbSync.textContent = `Error de sincronización con Supabase: ${sync.msg || 'Error desconocido'}.${pendientes}`;
+            } else if (sync.status === 'offline_fallback') {
+                sbSync.style.color = 'var(--text-primary)';
+                sbSync.textContent = 'Asentado en base relacional local; Supabase no está disponible.';
             } else {
-                sbSync.innerHTML = '<span style="color: var(--text-primary);">Asentado en base relacional (ON CONFLICT DO UPDATE / DO NOTHING)</span>';
+                sbSync.style.color = 'var(--text-primary)';
+                sbSync.textContent = sync.msg || 'No había filas válidas para sincronizar con Supabase.';
             }
 
             document.getElementById('rcLeidas').innerText = data.total_registros_procesados || data.filas_leidas;
@@ -1918,7 +1956,13 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
             document.getElementById('rcRechazadas').innerText = data.filas_rechazadas;
 
             const textoIdemp = document.getElementById('rcTextoIdempotencia');
-            textoIdemp.innerText = `Idempotencia verificada: el reingreso del mismo archivo o la ejecución múltiple no altera los saldos de inventario ni duplica registros (Cambio neto en base = ${data.cambio_neto_base} registros). Las transacciones existentes fueron gestionadas con cláusulas ON CONFLICT en la base relacional.`;
+            if (data.persistencia_local === false) {
+                textoIdemp.innerText = 'Esta tabla se guarda únicamente en Supabase. El mismo archivo exacto no se vuelve a insertar tras confirmarse una carga append-only.';
+            } else if (data.cambio_neto_base !== undefined) {
+                textoIdemp.innerText = `Persistencia local y Supabase: ${data.filas_persistidas_localmente || data.filas_insertadas_o_actualizadas || 0} filas asentadas localmente; las claves naturales usan UPSERT para evitar duplicados.`;
+            } else {
+                textoIdemp.innerText = `Idempotencia verificada: el reingreso del mismo archivo o la ejecución múltiple no altera los saldos de inventario ni duplica registros (Cambio neto en base = ${data.cambio_neto_base} registros). Las transacciones existentes fueron gestionadas con cláusulas ON CONFLICT en la base relacional.`;
+            }
 
             trazabilidadActual = data.trazabilidad_filas || [];
             renderTablaTrazabilidad(trazabilidadActual);
@@ -1956,13 +2000,20 @@ HTML_EMPRESARIAL = """<!DOCTYPE html>
                     .replace(/^OC\s+OC-/i, 'OC-')
                     .replace(/^OC\s+/i, 'OC-')
                     .replace(/^MOV\s+MOV-/i, 'MOV-');
+                const escaparHtml = valor => String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                })[caracter]);
 
                 tr.innerHTML = `
-                    <td class="mono text-right">${f.fila}</td>
-                    <td class="mono" style="font-weight: 600; color: var(--text-primary);">${idLimpio}</td>
-                    <td class="text-center"><span class="kpi-badge ${badgeClass}">${estadoLabel}</span></td>
-                    <td>${f.motivo}</td>
-                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${f.detalle}</td>
+                    <td class="mono text-right">${escaparHtml(f.fila)}</td>
+                    <td class="mono" style="font-weight: 600; color: var(--text-primary);">${escaparHtml(idLimpio)}</td>
+                    <td class="text-center"><span class="kpi-badge ${badgeClass}">${escaparHtml(estadoLabel)}</span></td>
+                    <td>${escaparHtml(f.motivo)}</td>
+                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${escaparHtml(f.detalle)}</td>
                 `;
                 tbody.appendChild(tr);
             });
